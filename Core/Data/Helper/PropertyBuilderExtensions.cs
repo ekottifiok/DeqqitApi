@@ -7,7 +7,8 @@ namespace Core.Data.Helper;
 
 public static class PropertyBuilderExtensions
 {
-    public static PropertyBuilder<T> HasJsonConversion<T>(this PropertyBuilder<T> propertyBuilder) where T : class, new()
+    public static PropertyBuilder<T> HasJsonConversion<T>(this PropertyBuilder<T> propertyBuilder)
+        where T : class, new()
     {
         JsonSerializerOptions options = new() { WriteIndented = false };
 

@@ -2,15 +2,16 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Core.Services.Helper.Interface;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Core.Services.Helper;
 
-public class TokenService(IConfiguration configuration): ITokenService
+public class TokenService(IConfiguration configuration) : ITokenService
 {
-    private const int AccessTokenValidityInMinutes = 5;
+    private const int AccessTokenValidityInMinutes = 20;
     public const int RefreshTokenValidityInDays = 7;
 
     public string GenerateRefreshToken()
@@ -37,8 +38,8 @@ public class TokenService(IConfiguration configuration): ITokenService
             new(Encoding.UTF8.GetBytes(configuration["JWT:Secret"] ?? throw new InvalidOperationException()));
 
         JwtSecurityToken token = new(
-            issuer: configuration["JWT:ValidIssuer"],
-            audience: configuration["JWT:ValidAudience"],
+            configuration["JWT:ValidIssuer"],
+            configuration["JWT:ValidAudience"],
             expires: DateTime.Now.AddMinutes(AccessTokenValidityInMinutes),
             claims: authClaims,
             signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256Signature)

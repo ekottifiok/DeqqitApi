@@ -2,19 +2,19 @@ using System.Security.Claims;
 using Core.Dto.Common;
 using Core.Dto.NoteType;
 using Core.Model;
-using Core.Services;
+using Core.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-namespace Api.Controllers;
 
+namespace Api.Controllers;
 
 [Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class NoteTypeController(INoteTypeService noteTypeService): ControllerBase
+public class NoteTypeController(INoteTypeService noteTypeService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<PaginationResult<NoteType>>> NoteTypes(PaginationRequest<int> request)
+    public async Task<ActionResult<PaginationResult<NoteType>>> Get([FromQuery] PaginationRequest<int> request)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();
@@ -23,7 +23,7 @@ public class NoteTypeController(INoteTypeService noteTypeService): ControllerBas
 
         return Ok(noteTypes);
     }
-    
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<NoteType>> Get(int id)
     {
@@ -35,14 +35,15 @@ public class NoteTypeController(INoteTypeService noteTypeService): ControllerBas
 
         return Ok(noteType);
     }
-    
+
+    // TODO: Create more validation
     [HttpPost]
     public async Task<ActionResult> Create(CreateNoteTypeRequest request)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        NoteType? noteType = await noteTypeService.Create(userId,  request);
+        NoteType? noteType = await noteTypeService.Create(userId, request);
         if (noteType == null) return BadRequest();
 
         return CreatedAtAction(nameof(Get), new { id = noteType.Id }, noteType);

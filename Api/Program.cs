@@ -1,17 +1,21 @@
 using System.Text.Json.Serialization;
+using Api.Helpers;
 using Api.Middleware;
 using Core.Data;
 using Core.Model;
 using Core.Services;
 using Core.Services.Helper;
+using Core.Services.Helper.Interface;
+using Core.Services.Interface;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 
-builder.Services.AddDbContext<DataContext>(options => 
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))); 
+builder.Services.AddDbContext<DataContext>(options =>
+    options.EnableSensitiveDataLogging().UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 // Add services to the container.
 builder.Services.AddScoped<ICardService, CardService>();
@@ -31,12 +35,15 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddIdentity<User, IdentityRole>(options =>
     {
-        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-._@+";
+        options.User.AllowedUserNameCharacters =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-._@+";
     })
     .AddDefaultTokenProviders()
     .AddEntityFrameworkStores<DataContext>();
-builder.AddCustomJwtMiddleware(); 
+builder.AddCustomJwtMiddleware();
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -44,22 +51,13 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
-
+builder.Services.AddOpenApiConfiguration(builder.Environment);
 WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    // app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "OpenAPI V1"));
-    // app.UseReDoc(c =>
-    // {
-    //     c.DocumentTitle = "REDOC API Documentation";
-    //     c.SpecUrl = "/openapi/v1.json";
-    // });   
-    // app.Services.UseSeedDatabaseMiddleware();
-}
+app.UseOpenApiConfiguration();
 
+// app.Services.UseSeedDatabaseMiddleware();
 app.UseHttpsRedirection();
 
 app.UseAuthorization();

@@ -1,9 +1,11 @@
+using System.ComponentModel.DataAnnotations;
+using Core.Dto.Validation;
+
 namespace Core.Dto.Note;
 
 public class NoteRequest
 {
     public Dictionary<string, string> Data { get; set; }
 
-    // TODO: Ensure it is alphabets only
-    public List<string> Tags { get; set; }
+    [AlphabetsOnly] [MaxLength(20)] public List<string> Tags { get; set; }
 }

@@ -19,11 +19,12 @@ public static class JwtMiddleware
             {
                 options.SaveToken = true;
                 options.RequireHttpsMetadata = false;
-                options.TokenValidationParameters = new TokenValidationParameters()
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
                     // ValidateIssuerSigningKey = true,
                     ClockSkew = TimeSpan.Zero,
-                    ValidAudience = configuration["JWT:ValidAudience"] ?? throw new Exception("Valid Audience JWT Not Found"),
+                    ValidAudience = configuration["JWT:ValidAudience"] ??
+                                    throw new Exception("Valid Audience JWT Not Found"),
                     ValidIssuer = configuration["JWT:ValidIssuer"] ?? throw new Exception("Valid Issuer JWT Not Found"),
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(configuration["JWT:Secret"] ?? throw new InvalidOperationException()))

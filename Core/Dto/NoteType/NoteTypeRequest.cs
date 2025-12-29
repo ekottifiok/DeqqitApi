@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Core.Model;
 
 namespace Core.Dto.NoteType;
 
@@ -10,5 +9,5 @@ public class NoteTypeRequest
     public string Name { get; set; }
 
     [StringLength(5000)] public string CssStyle { get; set; } = string.Empty;
-    [Required] [MinLength(1)] public List<NoteTypeTemplate> Templates { get; set; }
+    [Required] [MinLength(1)] public List<UpsertNoteTypeTemplateRequest> Templates { get; set; }
 }

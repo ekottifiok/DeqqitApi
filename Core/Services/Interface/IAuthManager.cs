@@ -1,7 +1,7 @@
 using Core.Dto.User;
 using Core.Model;
 
-namespace Core.Services;
+namespace Core.Services.Interface;
 
 public interface IAuthManager
 {

@@ -1,4 +1,4 @@
-namespace Core.Model;
+namespace Core.Model.Helper;
 
 public enum UserAiProviderType
 {

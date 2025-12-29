@@ -1,4 +1,4 @@
-namespace Core.Services.Helper;
+namespace Core.Services.Helper.Interface;
 
 public interface IAiService
 {

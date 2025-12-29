@@ -4,7 +4,10 @@ using Core.Dto.Note;
 using Core.Model;
 using Core.Model.Helper;
 using Core.Services.Helper;
+using Core.Services.Helper.Interface;
+using Core.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Z.EntityFramework.Extensions;
 
 namespace Core.Services;
 
@@ -16,7 +19,7 @@ public class NoteService(DataContext context, ITemplateService templateService) 
             .Where(x => x.CreatorId == creatorId && x.DeckId == deckId);
         return await PaginateAsync(query, request);
     }
-    
+
     public async Task<Note?> Get(string creatorId, int id)
     {
         return await context.Notes.AsNoTracking()
@@ -32,11 +35,30 @@ public class NoteService(DataContext context, ITemplateService templateService) 
             .FirstOrDefaultAsync(x => x.CreatorId == creatorId && x.Id == id);
         if (note == null) return 0;
 
-        List<string> fields = templateService.GetAllFields(GetField(note.NoteType.Templates));
+        List<string> fields = templateService.GetAllFields(TemplateService.GetField(note.NoteType.Templates));
         note.Data = Cleanup(fields, request.Data);
         note.Tags = request.Tags;
         await context.SaveChangesAsync();
         return 1;
+    }
+
+    public async Task<List<Dictionary<string, string>>?> GenerateFlashcards(string creatorId, int providerId,
+        int noteTypeId, string description)
+    {
+        List<UserAiProvider> providers = await context.Users.Include(x => x.AiProviders).Where(x => x.Id == creatorId)
+            .AsNoTracking().Select(x => x.AiProviders)
+            .FirstOrDefaultAsync() ?? [];
+        providers.ForEach(x => Console.WriteLine($"ID: {x.Id}, Key: {x.Key}, Type: {x.Type}"));
+        UserAiProvider? provider = providers.FirstOrDefault(x => x.Id == providerId);
+        if (provider is null) return null;
+
+        List<NoteTypeTemplate> templates =
+            await context.NoteTypeTemplates.AsNoTracking().Where(x => x.NoteTypeId == noteTypeId).ToListAsync();
+        IAiService? aiService = AiServiceFactory.GetUserService(provider);
+
+        List<string> fields = templateService.GetAllFields(TemplateService.GetField(templates));
+        List<Dictionary<string, string>>? flashcards = await aiService.GenerateFlashcard(fields, description);
+        return flashcards ?? null;
     }
 
     public async Task<bool> Create(string creatorId, int deckId, int noteTypeId, List<CreateNoteRequest> request)
@@ -49,10 +71,10 @@ public class NoteService(DataContext context, ITemplateService templateService) 
             .FirstOrDefaultAsync(x => x.Id == noteTypeId && (x.CreatorId == creatorId || x.CreatorId == null));
         if (noteType == null) return false;
 
-        List<string> fields = templateService.GetAllFields(GetField(noteType.Templates));
+        List<string> fields = templateService.GetAllFields(TemplateService.GetField(noteType.Templates));
         (int Interval, int Repetitions, double EaseFactor, DateTime DueDate, int StepIndex) flashcardData =
             Card.FlashcardData();
-        IEnumerable<Note> notes = request.Select(x => new Note
+        List<Note> notes = request.Select(x => new Note
             {
                 DeckId = deckId,
                 NoteTypeId = noteTypeId,
@@ -65,19 +87,25 @@ public class NoteService(DataContext context, ITemplateService templateService) 
                     Interval = flashcardData.Interval,
                     Repetitions = flashcardData.Repetitions,
                     EaseFactor = flashcardData.EaseFactor,
-                    DueDate = DateTime.UtcNow,
+                    DueDate = flashcardData.DueDate,
                     StepIndex = flashcardData.StepIndex,
-                    NoteTypeTemplateId = template.Id,
-                }).ToList(),
+                    NoteTypeTemplateId = template.Id
+                }).ToList()
             }
-        );
-        await context.Notes.AddRangeAsync(notes);
-        await context.SaveChangesAsync();
+        ).Where(n => n.Data.Count > 0).ToList();
+        BulkOptimizedAnalysis? analysis = await context.BulkInsertOptimizedAsync(notes,
+            options => { options.IncludeGraph = true; });
+        if (!analysis.IsOptimized) Console.WriteLine(analysis.TipsText); // View recommendations to optimize
         return true;
     }
 
-    private IEnumerable<string> GetField
-        (IEnumerable<NoteTypeTemplate> template) => template.Select(x => $"{x.Back}{x.Front}");
+    public async Task<int> Delete(int id, string creatorId)
+    {
+        return await context.Notes
+            .Where(x => x.CreatorId == creatorId && x.Id == id)
+            .ExecuteDeleteAsync();
+    }
+
 
     private static Dictionary<string, string> Cleanup(List<string> fields,
         Dictionary<string, string> data)
@@ -86,12 +114,5 @@ public class NoteService(DataContext context, ITemplateService templateService) 
             key => key,
             key => data.GetValueOrDefault(key, string.Empty)
         );
-    }
-
-    public async Task<int> Delete(int id, string creatorId)
-    {
-        return await context.Notes
-            .Where(x => x.CreatorId == creatorId && x.Id == id)
-            .ExecuteDeleteAsync();
     }
 }

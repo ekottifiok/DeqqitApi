@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Core.Model;
 using Core.Model.Helper;
 
-namespace Core.Services;
+namespace Core.Dto.Deck;
 
 public class DeckOptionRequest
 {
@@ -12,20 +12,26 @@ public class DeckOptionRequest
     [Required] public bool InterdayLearningMix { get; set; }
 
     // Request -> Entity
-    public static implicit operator DeckOption(DeckOptionRequest request) => new()
+    public static implicit operator DeckOption(DeckOptionRequest request)
     {
-        NewLimitPerDay = request.NewLimitPerDay,
-        ReviewLimitPerDay = request.ReviewLimitPerDay,
-        SortOrder = request.SortOrder,
-        InterdayLearningMix = request.InterdayLearningMix,
-    };
+        return new DeckOption
+        {
+            NewLimitPerDay = request.NewLimitPerDay,
+            ReviewLimitPerDay = request.ReviewLimitPerDay,
+            SortOrder = request.SortOrder,
+            InterdayLearningMix = request.InterdayLearningMix
+        };
+    }
 
     // Entity -> Request (The "Reverse")
-    public static implicit operator DeckOptionRequest(DeckOption model) => new()
+    public static implicit operator DeckOptionRequest(DeckOption model)
     {
-        NewLimitPerDay = model.NewLimitPerDay,
-        ReviewLimitPerDay = model.ReviewLimitPerDay,
-        SortOrder = model.SortOrder,
-        InterdayLearningMix = model.InterdayLearningMix,
-    };
+        return new DeckOptionRequest
+        {
+            NewLimitPerDay = model.NewLimitPerDay,
+            ReviewLimitPerDay = model.ReviewLimitPerDay,
+            SortOrder = model.SortOrder,
+            InterdayLearningMix = model.InterdayLearningMix
+        };
+    }
 }

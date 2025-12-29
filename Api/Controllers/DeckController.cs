@@ -3,7 +3,7 @@ using Core.Dto.Card;
 using Core.Dto.Common;
 using Core.Dto.Deck;
 using Core.Model;
-using Core.Services;
+using Core.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,7 +12,8 @@ namespace Api.Controllers;
 [Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class DeckController(IDeckService deckService, INoteService noteService, ICardService cardService) : ControllerBase
+public class DeckController(IDeckService deckService, INoteService noteService, ICardService cardService)
+    : ControllerBase
 {
     [HttpGet("{id:int}")]
     public async Task<ActionResult<DeckSummaryResponse>> Get(int id)
@@ -25,9 +26,9 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
 
         return Ok();
     }
-    
+
     [HttpGet("{id:int}/notes")]
-    public async Task<ActionResult<PaginationResult<Note>>> GetAllNotes(int id, PaginationRequest<int> request)
+    public async Task<ActionResult<PaginationResult<Note>>> GetAllNotes(int id, [FromQuery]PaginationRequest<int> request)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();
@@ -36,9 +37,9 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
 
         return Ok(notes);
     }
-    
+
     [HttpGet("{id:int}/cards")]
-    public async Task<ActionResult<PaginationResult<Card>>> GetAllCards(int id, PaginationRequest<int> request)
+    public async Task<ActionResult<PaginationResult<Card>>> GetAllCards(int id, [FromQuery]PaginationRequest<int> request)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();
@@ -47,7 +48,7 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
 
         return Ok(cards);
     }
-    
+
     [HttpGet("{id:int}/cards/next")]
     public async Task<ActionResult> GetNextCard(int id)
     {
@@ -59,7 +60,7 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
 
         return Ok(card);
     }
-    
+
 
     [HttpGet("{id:int}/stats")]
     public async Task<ActionResult<DeckStatisticsResponse>> GetStats(int id)
@@ -84,7 +85,7 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
 
         return CreatedAtAction(nameof(Get), new { id = deck.Id }, deck);
     }
-    
+
     [HttpPut("{id:int}")]
     public async Task<ActionResult> Update(int id, UpdateDeckRequest request)
     {
@@ -96,7 +97,7 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
 
         return NoContent();
     }
-    
+
     [HttpDelete("{id:int}")]
     public async Task<ActionResult> Delete(int id)
     {
@@ -108,5 +109,4 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
 
         return NoContent();
     }
-
 }

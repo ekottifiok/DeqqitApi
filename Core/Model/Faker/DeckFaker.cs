@@ -22,14 +22,12 @@ public sealed class DeckFaker : Faker<Deck>
         int days = f.Random.Int(0, 7);
 
         for (int i = 0; i < days; i++)
-        {
             counts.Add(new DeckDailyCount
             {
                 Date = DateOnly.FromDateTime(f.Date.Recent(i)),
                 CardState = f.PickRandom<CardState>(),
                 Count = f.Random.Int(1, 50)
             });
-        }
 
         return counts;
     }

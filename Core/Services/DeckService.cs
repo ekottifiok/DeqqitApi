@@ -2,12 +2,14 @@ using Core.Data;
 using Core.Dto.Deck;
 using Core.Model;
 using Core.Model.Helper;
-using Core.Services.Helper;
+using Core.Services.Helper.Interface;
+using Core.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace Core.Services;
 
-public class DeckService(DataContext context, IFlashcardAlgorithmService flashcardAlgorithmService): IDeckService
+public class DeckService(DataContext context, IFlashcardAlgorithmService flashcardAlgorithmService) : IDeckService
 {
     public async Task<Deck?> Create(string creatorId, CreateDeckRequest request)
     {
@@ -16,7 +18,7 @@ public class DeckService(DataContext context, IFlashcardAlgorithmService flashca
             CreatorId = creatorId,
             Name = request.Name,
             Description = request.Description,
-            Option = request.OptionRequest == null ?  null: (DeckOption)request.OptionRequest,
+            Option = request.OptionRequest == null ? null : (DeckOption)request.OptionRequest
         };
         await context.Decks.AddAsync(deck);
         await context.SaveChangesAsync();
@@ -25,13 +27,13 @@ public class DeckService(DataContext context, IFlashcardAlgorithmService flashca
 
     public async Task<int> Update(int id, string creatorId, UpdateDeckRequest request)
     {
-        DeckOption? option = request.OptionRequest == null ? null : (DeckOption)request.OptionRequest;
-        return await context.Decks.Where(x => x.Id == id && x.CreatorId == creatorId)
-            .ExecuteUpdateAsync(x => x
-                .SetProperty(d => d.Name, request.Name)
-                .SetProperty(d => d.Description, request.Description)
-                .SetProperty(d => d.Option, option)
-            );
+        Deck? deck = await context.Decks.FirstOrDefaultAsync(d => d.Id == id && d.CreatorId == creatorId);
+        if (deck is null) return 0;
+        deck.Name = request.Name;
+        deck.Description = request.Description;
+        deck.Option = request.OptionRequest is null ? null : (DeckOption) request.OptionRequest;
+        await context.SaveChangesAsync();
+        return 1;
     }
 
     public async Task<int> Delete(int id, string creatorId)
@@ -40,8 +42,8 @@ public class DeckService(DataContext context, IFlashcardAlgorithmService flashca
             .Where(x => x.CreatorId == creatorId && x.Id == id)
             .ExecuteDeleteAsync();
     }
-    
-    
+
+
     public async Task<DeckStatisticsResponse?> GetStatistics(string creatorId, int id)
     {
         var deck = await context.Decks.Where(x => x.CreatorId == creatorId && x.Id == id)

@@ -9,16 +9,13 @@ public class BaseService
 {
     protected static async Task<PaginationResult<TEntity>> PaginateAsync<TEntity, TCursor>(
         IQueryable<TEntity> query,
-        PaginationRequest<TCursor> request) 
-        where TEntity : class, IPagination<TCursor> 
-        where TCursor : struct 
+        PaginationRequest<TCursor> request)
+        where TEntity : class, IPagination<TCursor>
+        where TCursor : struct
     {
         // 1. Reference Lookup (The Cursor)
         TEntity? reference = null;
-        if (request.CursorId != null)
-        {
-            reference = await query.FirstOrDefaultAsync(x => x.Id.Equals(request.CursorId));
-        }
+        if (request.CursorId != null) reference = await query.FirstOrDefaultAsync(x => x.Id.Equals(request.CursorId));
 
         // 2. Keyset Setup 
         KeysetPaginationContext<TEntity> keysetContext = query.KeysetPaginate(
@@ -29,20 +26,20 @@ public class BaseService
 
         // 3. Execution with "Fetch N+1" Optimization
         List<TEntity> items = await keysetContext.Query
-            .Take(request.PageSize + 1) 
+            .Take(request.PageSize + 1)
             .ToListAsync();
 
         // 4. Determine Pagination Metadata
         bool hasNext = items.Count > request.PageSize;
-    
+
         // Remove the extra item
-        if (hasNext) items.RemoveAt(items.Count - 1); 
-        
+        if (hasNext) items.RemoveAt(items.Count - 1);
+
         keysetContext.EnsureCorrectOrder(items);
 
         return new PaginationResult<TEntity>(
-            items, 
-            items.Count, 
+            items,
+            items.Count,
             hasNext
         );
     }

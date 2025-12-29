@@ -10,7 +10,7 @@ public record DeckOption
     public int ReviewLimitPerDay { get; set; }
     public DeckOptionSortOrder SortOrder { get; set; }
     public bool InterdayLearningMix { get; set; }
-    
+
     public static DeckOption CreateDefault => new()
     {
         NewLimitPerDay = 20,

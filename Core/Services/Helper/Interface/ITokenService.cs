@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 
-namespace Core.Services.Helper;
+namespace Core.Services.Helper.Interface;
 
 public interface ITokenService
 {

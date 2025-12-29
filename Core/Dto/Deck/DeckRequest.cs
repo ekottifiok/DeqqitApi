@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Core.Services;
+namespace Core.Dto.Deck;
 
 public class DeckRequest
 {
@@ -11,6 +11,6 @@ public class DeckRequest
     [Required]
     [StringLength(500, MinimumLength = 5)]
     public string Description { get; set; }
-    
+
     public DeckOptionRequest? OptionRequest { get; set; }
 }

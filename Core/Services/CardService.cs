@@ -4,11 +4,16 @@ using Core.Dto.Common;
 using Core.Model;
 using Core.Model.Helper;
 using Core.Services.Helper;
+using Core.Services.Helper.Interface;
+using Core.Services.Interface;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.Services;
 
-public class CardService(DataContext context, ITemplateService templateService, IFlashcardAlgorithmService algorithmService)
+public class CardService(
+    DataContext context,
+    ITemplateService templateService,
+    IFlashcardAlgorithmService algorithmService)
     : BaseService, ICardService
 {
     public async Task<PaginationResult<Card>> Get(string creatorId, int deckId, PaginationRequest<int> request)
@@ -122,6 +127,78 @@ public class CardService(DataContext context, ITemplateService templateService, 
         return null;
     }
 
+    // TODO: Add the User Request
+    public async Task<bool> SubmitCardReview(string creatorId, int id, CardSubmitRequest request)
+    {
+        DateTime now = DateTime.UtcNow;
+        DateOnly today = DateOnly.FromDateTime(now);
+
+        // 1. Fetch Card with essential relations
+        var card = await context.Cards
+            .Include(x => x.Note)
+            .Include(x => x.Template)
+            .FirstOrDefaultAsync(x => x.Id == id && x.Note.CreatorId == creatorId && x.State != CardState.Suspended);
+
+        if (card is null) return false;
+
+        // 2. Fetch User with Tracking (needed to update Streaks)
+        // We fetch the whole user to avoid the "Owned Entity Projection" crash
+        var user = await context.Users
+            .FirstOrDefaultAsync(x => x.Id == creatorId);
+
+        if (user is null) return false;
+
+        // 3. Find AI Provider
+        var provider = user.AiProviders.FirstOrDefault(x => x.Id == request.UserProviderId);
+        if (provider is null) return false;
+
+        // 4. AI Evaluation
+        IAiService aiService = AiServiceFactory.GetUserService(provider);
+        var (front, back) = (
+            await templateService.Parse(card.Template.Front, card.Note.Data),
+            await templateService.Parse(card.Template.Back, card.Note.Data)
+        );
+
+        int? flashcardQuality = await aiService.CheckAnswer(front, request.Answer, back);
+        if (flashcardQuality is null) return false;
+
+        // 5. SRS Algorithm Calculation
+        var result = algorithmService.Calculate((int)flashcardQuality, card.State, card.Interval, card.EaseFactor,
+            card.StepIndex);
+
+        // 6. Update Daily Statistics (Including the missing DATE check)
+        var dailyCount = await context.DailyCounts
+                             .FirstOrDefaultAsync(x => x.DeckId == card.Note.DeckId
+                                                       && x.CardState == result.State
+                                                       && x.Date == today)
+                         ?? new DeckDailyCount
+                         {
+                             DeckId = card.Note.DeckId,
+                             CardState = result.State,
+                             Date = today
+                         };
+
+        if (dailyCount.Id == 0) context.DailyCounts.Add(dailyCount);
+        dailyCount.Count += 1;
+
+        // 7. Apply Results to Card
+        card.State = result.State;
+        card.Interval = result.Interval;
+        card.Repetitions = result.Repetitions;
+        card.EaseFactor = result.EaseFactor;
+        card.DueDate = now.AddMinutes(result.Interval);
+        card.StepIndex = result.LearningStepIndex;
+
+        // 8. Update Streak
+        if (!user.UserStreaks.Contains(today))
+        {
+            user.UserStreaks.Add(today);
+        }
+
+        await context.SaveChangesAsync();
+        return true;
+    }
+
     private async Task<CardResponse> MapToResponse(Card card)
     {
         return new CardResponse(
@@ -142,41 +219,5 @@ public class CardService(DataContext context, ITemplateService templateService, 
             DeckOptionSortOrder.DueDate => query.OrderBy(c => c.DueDate), // Default Anki behavior
             _ => throw new ArgumentOutOfRangeException(nameof(sortOrder), sortOrder, null)
         };
-    }
-
-    // TODO: Add the User Request
-    public async Task<bool> SubmitCardReview(string creatorId, int id, CardSubmitRequest request)
-    {
-        DateTime dateTime = DateTime.UtcNow;
-        DateOnly currentDate = DateOnly.FromDateTime(dateTime);
-        Card? card = await context.Cards
-            .Include(x => x.Note)
-            .FirstOrDefaultAsync(x => x.Id == id && x.Note.CreatorId == creatorId && x.State != CardState.Suspended);
-        if (card is null) return false;
-
-        // TODO: Check the AI and update with the flashcard algorithm
-        int quality = 4;
-        FlashcardResult result = algorithmService.Calculate(quality, card.State, card.Interval, card.EaseFactor,
-            card.StepIndex);
-
-        User? user = await context.Users.FirstOrDefaultAsync(x => x.Id == creatorId);
-        if (user is null) return false;
-        DeckDailyCount dailyCount =
-            await context.DailyCounts.FirstOrDefaultAsync(x =>
-                x.DeckId == card.Note.DeckId && x.CardState == result.State) ??
-            new DeckDailyCount { DeckId = card.Note.DeckId, CardState = result.State };
-
-        card.State = result.State;
-        card.Interval = result.Interval;
-        card.Repetitions = result.Repetitions;
-        card.EaseFactor = result.EaseFactor;
-        card.DueDate = DateTime.UtcNow.AddMinutes(result.Interval);
-        card.StepIndex = result.LearningStepIndex;
-
-        if (!user.UserStreaks.Contains(currentDate)) user.UserStreaks.Add(currentDate);
-        dailyCount.Count += 1;
-
-        await context.SaveChangesAsync();
-        return true;
     }
 }

@@ -1,7 +1,7 @@
 using Core.Dto.Common;
 using Core.Model.Helper;
 
-namespace Core.Services.Helper;
+namespace Core.Services.Helper.Interface;
 
 public interface IFlashcardAlgorithmService
 {

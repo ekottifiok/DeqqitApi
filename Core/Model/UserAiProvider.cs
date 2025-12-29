@@ -1,3 +1,4 @@
+using Core.Model.Helper;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.Model;
@@ -6,8 +7,6 @@ namespace Core.Model;
 public class UserAiProvider
 {
     public int Id { get; set; }
-    public string CreatorId { get; set; }
-    public User Creator { get; set; }
     public UserAiProviderType Type { get; set; }
     public string Key { get; set; }
 }

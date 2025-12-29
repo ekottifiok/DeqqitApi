@@ -217,6 +217,24 @@ namespace Core.Data.Migrations
                     b.HasIndex("CreatorId");
 
                     b.ToTable("NoteTypes");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 770, DateTimeKind.Utc).AddTicks(4409),
+                            CssStyle = ".card { font-family: arial; text-align: center; }",
+                            Name = "Basic",
+                            UpdatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 770, DateTimeKind.Utc).AddTicks(4413)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 770, DateTimeKind.Utc).AddTicks(5898),
+                            CssStyle = ".card { font-family: arial; text-align: center; }",
+                            Name = "Basic (and reversed card)",
+                            UpdatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 770, DateTimeKind.Utc).AddTicks(5898)
+                        });
                 });
 
             modelBuilder.Entity("Core.Model.NoteTypeTemplate", b =>
@@ -249,6 +267,35 @@ namespace Core.Data.Migrations
                     b.HasIndex("NoteTypeId");
 
                     b.ToTable("NoteTypeTemplates");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Back = "{{Front}}<hr id=answer>{{Back}}",
+                            CreatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 771, DateTimeKind.Utc).AddTicks(6131),
+                            Front = "{{Front}}",
+                            NoteTypeId = 1,
+                            UpdatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 771, DateTimeKind.Utc).AddTicks(6136)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Back = "{{Front}}<hr id=answer>{{Back}}",
+                            CreatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 771, DateTimeKind.Utc).AddTicks(7508),
+                            Front = "{{Front}}",
+                            NoteTypeId = 2,
+                            UpdatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 771, DateTimeKind.Utc).AddTicks(7509)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Back = "{{Back}}<hr id=answer>{{Front}}",
+                            CreatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 771, DateTimeKind.Utc).AddTicks(7512),
+                            Front = "{{Back}}",
+                            NoteTypeId = 2,
+                            UpdatedAt = new DateTime(2025, 12, 29, 5, 24, 38, 771, DateTimeKind.Utc).AddTicks(7512)
+                        });
                 });
 
             modelBuilder.Entity("Core.Model.User", b =>
@@ -624,6 +671,34 @@ namespace Core.Data.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("UserId");
                         });
+
+                    b.OwnsMany("Core.Model.UserAiProvider", "AiProviders", b1 =>
+                        {
+                            b1.Property<string>("UserId")
+                                .HasColumnType("text");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<string>("Key")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<int>("Type")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("UserId", "Id");
+
+                            b1.ToTable("UserAiProvider");
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserId");
+                        });
+
+                    b.Navigation("AiProviders");
 
                     b.Navigation("DeckOption")
                         .IsRequired();

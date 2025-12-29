@@ -1,8 +1,9 @@
+using Core.Services.Helper.Interface;
 using ExCSS;
 
 namespace Core.Services.Helper;
 
-public class CssService: ICssService
+public class CssService : ICssService
 {
     public async Task<string> Parse(string css)
     {

@@ -4,10 +4,10 @@ public static class FileHelper
 {
     public const string FileLocation = "wwwroot";
 
+    public const string FileImageUpload = "images";
+
     public static readonly string[] FileImageExtensions =
         [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic", ".heif", ".avif", ".svg", ".tiff", ".tif", ".raw"];
-
-    public const string FileImageUpload = "images";
 
     // Upload file with validation
     public static async Task<(bool Success, string Message, string? FilePath)> UploadFileAsync(IFormFile? file,

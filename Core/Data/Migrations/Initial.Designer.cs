@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Core.Data.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20251227231320_Initial")]
+    [Migration("20251228180256_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -627,6 +627,34 @@ namespace Core.Data.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("UserId");
                         });
+
+                    b.OwnsMany("Core.Model.UserAiProvider", "AiProviders", b1 =>
+                        {
+                            b1.Property<string>("UserId")
+                                .HasColumnType("text");
+
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer");
+
+                            NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b1.Property<int>("Id"));
+
+                            b1.Property<string>("Key")
+                                .IsRequired()
+                                .HasColumnType("text");
+
+                            b1.Property<int>("Type")
+                                .HasColumnType("integer");
+
+                            b1.HasKey("UserId", "Id");
+
+                            b1.ToTable("UserAiProvider");
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserId");
+                        });
+
+                    b.Navigation("AiProviders");
 
                     b.Navigation("DeckOption")
                         .IsRequired();

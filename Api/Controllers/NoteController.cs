@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Core.Dto.Note;
 using Core.Model;
-using Core.Services;
+using Core.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,9 +23,24 @@ public class NoteController(INoteService noteService) : ControllerBase
 
         return Ok(notes);
     }
-    
+
+    [HttpGet("generate")]
+    public async Task<ActionResult<List<Dictionary<string, string>>>> Generate([FromQuery] GenerateAiFlashcardRequest request)
+    {
+        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId)) return Forbid();
+
+        List<Dictionary<string, string>>? notes =
+            await noteService.GenerateFlashcards(userId, request.ProviderId, request.NoteTypeId, request.Description);
+        if (notes == null) return NotFound();
+
+        return Ok(notes);
+    }
+
+    // TODO: Create more validation
     [HttpPost]
-    public async Task<ActionResult> Create([FromBody]List<CreateNoteRequest> request, [FromQuery] CreateNoteQueryRequest queryRequest)
+    public async Task<ActionResult> Create([FromBody] List<CreateNoteRequest> request,
+        [FromQuery] CreateNoteQueryRequest queryRequest)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();

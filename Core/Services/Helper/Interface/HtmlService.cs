@@ -2,9 +2,9 @@ using AngleSharp;
 using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 
-namespace Core.Services.Helper;
+namespace Core.Services.Helper.Interface;
 
-public class HtmlService: IHtmlService
+public class HtmlService : IHtmlService
 {
     public async Task<string?> Parse(string html)
     {

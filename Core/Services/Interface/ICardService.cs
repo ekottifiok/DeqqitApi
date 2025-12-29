@@ -2,7 +2,7 @@ using Core.Dto.Card;
 using Core.Dto.Common;
 using Core.Model;
 
-namespace Core.Services;
+namespace Core.Services.Interface;
 
 public interface ICardService
 {
@@ -12,5 +12,5 @@ public interface ICardService
 
     Task<CardResponse?> GetNextStudyCard(string creatorId, int deckId);
 
-    Task<bool> SubmitCardReview(string creatorId, int id,CardSubmitRequest request);
+    Task<bool> SubmitCardReview(string creatorId, int id, CardSubmitRequest request);
 }

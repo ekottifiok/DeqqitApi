@@ -10,7 +10,7 @@ public sealed class NoteTypeFaker : Faker<NoteType>
         RuleFor(nt => nt.CssStyle,
             f => $"color: {f.Internet.Color()}; font-family: {f.PickRandom("Arial", "Helvetica", "Times")}");
         RuleFor(nt => nt.CreatorId, f => creatorId);
-        RuleFor(nt => nt.Templates, f => GenerateTemplates(f));
+        RuleFor(nt => nt.Templates, GenerateTemplates);
     }
 
     private static ICollection<NoteTypeTemplate> GenerateTemplates(Bogus.Faker f)

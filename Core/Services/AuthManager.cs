@@ -3,6 +3,8 @@ using Core.Data;
 using Core.Dto.User;
 using Core.Model;
 using Core.Services.Helper;
+using Core.Services.Helper.Interface;
+using Core.Services.Interface;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,14 +14,14 @@ public class AuthManager(
     UserManager<User> userManager,
     SignInManager<User> signInManager,
     DataContext context,
-    ITokenService tokenService): IAuthManager
+    ITokenService tokenService) : IAuthManager
 {
     public async Task<(User user, Dictionary<string, string[]>? errors)> Register(RegisterRequest request)
     {
         User user = new()
         {
             UserName = request.UserName,
-            Email = request.Email,
+            Email = request.Email
         };
         IdentityResult result = await userManager.CreateAsync(user, request.Password);
         return !result.Succeeded ? (user, CreateValidationProblem(result)) : (user, null);

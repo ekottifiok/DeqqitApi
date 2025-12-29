@@ -1,11 +1,14 @@
 using System.Text.Json;
-using OpenAI.Chat; // Using the official OpenAI NuGet package
+using Core.Services.Helper.Interface;
+using OpenAI.Chat;
+
+// Using the official OpenAI NuGet package
 
 namespace Core.Services.Helper;
 
 public class OpenAiService(string apiKey) : IAiService
 {
-    private readonly ChatClient _client = new(model: "gpt-4o-mini", apiKey: apiKey);
+    private readonly ChatClient _client = new("gpt-5-nano", apiKey);
 
     public async Task<List<Dictionary<string, string>>?> GenerateFlashcard(List<string> fields, string description)
     {
@@ -41,7 +44,7 @@ public class OpenAiService(string apiKey) : IAiService
 
         ChatCompletion completion = await _client.CompleteChatAsync([new UserChatMessage(prompt)], options);
 
-        using var doc = JsonDocument.Parse(completion.Content[0].Text);
+        using JsonDocument doc = JsonDocument.Parse(completion.Content[0].Text);
         return doc.RootElement.GetProperty("cards").Deserialize<List<Dictionary<string, string>>>();
     }
 

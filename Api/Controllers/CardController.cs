@@ -1,16 +1,17 @@
 using System.Security.Claims;
 using Core.Dto.Card;
 using Core.Services;
+using Core.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
 namespace Api.Controllers;
 
 [Authorize]
 [Route("api/[controller]/{id:int}")]
 [ApiController]
-public class CardController(ICardService cardService): ControllerBase
+public class CardController(ICardService cardService) : ControllerBase
 {
-    
     [HttpPut("")]
     public async Task<ActionResult> Update(int id, UpdateCardStateRequest request)
     {
@@ -22,7 +23,7 @@ public class CardController(ICardService cardService): ControllerBase
 
         return NoContent();
     }
-    
+
     [HttpPost("submit")]
     public async Task<ActionResult> Submit(int id, CardSubmitRequest request)
     {
@@ -34,6 +35,4 @@ public class CardController(ICardService cardService): ControllerBase
 
         return NoContent();
     }
-
-
 }
