@@ -21,50 +21,50 @@ public class DataContext(DbContextOptions<DataContext> options) : IdentityDbCont
 
         // 1. Seed NoteTypes
         modelBuilder.Entity<NoteType>().HasData(
-            new NoteType 
-            { 
-                Id = 1, 
-                Name = "Basic", 
+            new NoteType
+            {
+                Id = 1,
+                Name = "Basic",
                 CssStyle = ".card { font-family: arial; text-align: center; }",
                 CreatorId = null // System default
             },
-            new NoteType 
-            { 
-                Id = 2, 
-                Name = "Basic (and reversed card)", 
+            new NoteType
+            {
+                Id = 2,
+                Name = "Basic (and reversed card)",
                 CssStyle = ".card { font-family: arial; text-align: center; }",
-                CreatorId = null 
+                CreatorId = null
             }
         );
 
         // 2. Seed NoteTypeTemplates
         modelBuilder.Entity<NoteTypeTemplate>().HasData(
             // Templates for "Basic" (Id 1)
-            new NoteTypeTemplate 
-            { 
-                Id = 1, 
-                NoteTypeId = 1, 
-                Front = "{{Front}}", 
-                Back = "{{Front}}<hr id=answer>{{Back}}" 
+            new NoteTypeTemplate
+            {
+                Id = 1,
+                NoteTypeId = 1,
+                Front = "{{Front}}",
+                Back = "{{Front}}<hr id=answer>{{Back}}"
             },
 
             // Templates for "Basic (and reversed)" (Id 2)
-            new NoteTypeTemplate 
-            { 
-                Id = 2, 
-                NoteTypeId = 2, 
-                Front = "{{Front}}", 
-                Back = "{{Front}}<hr id=answer>{{Back}}" 
+            new NoteTypeTemplate
+            {
+                Id = 2,
+                NoteTypeId = 2,
+                Front = "{{Front}}",
+                Back = "{{Front}}<hr id=answer>{{Back}}"
             },
-            new NoteTypeTemplate 
-            { 
-                Id = 3, 
-                NoteTypeId = 2, 
-                Front = "{{Back}}", 
-                Back = "{{Back}}<hr id=answer>{{Front}}" 
+            new NoteTypeTemplate
+            {
+                Id = 3,
+                NoteTypeId = 2,
+                Front = "{{Back}}",
+                Back = "{{Back}}<hr id=answer>{{Front}}"
             }
         );
-        
+
         modelBuilder.Entity<Note>().Property(b => b.Data).HasJsonConversion();
     }
 

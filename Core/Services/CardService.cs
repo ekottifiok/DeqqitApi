@@ -134,7 +134,7 @@ public class CardService(
         DateOnly today = DateOnly.FromDateTime(now);
 
         // 1. Fetch Card with essential relations
-        var card = await context.Cards
+        Card? card = await context.Cards
             .Include(x => x.Note)
             .Include(x => x.Template)
             .FirstOrDefaultAsync(x => x.Id == id && x.Note.CreatorId == creatorId && x.State != CardState.Suspended);
@@ -143,18 +143,18 @@ public class CardService(
 
         // 2. Fetch User with Tracking (needed to update Streaks)
         // We fetch the whole user to avoid the "Owned Entity Projection" crash
-        var user = await context.Users
+        User? user = await context.Users
             .FirstOrDefaultAsync(x => x.Id == creatorId);
 
         if (user is null) return false;
 
         // 3. Find AI Provider
-        var provider = user.AiProviders.FirstOrDefault(x => x.Id == request.UserProviderId);
+        UserAiProvider? provider = user.AiProviders.FirstOrDefault(x => x.Id == request.UserProviderId);
         if (provider is null) return false;
 
         // 4. AI Evaluation
         IAiService aiService = AiServiceFactory.GetUserService(provider);
-        var (front, back) = (
+        (string front, string back) = (
             await templateService.Parse(card.Template.Front, card.Note.Data),
             await templateService.Parse(card.Template.Back, card.Note.Data)
         );
@@ -163,20 +163,21 @@ public class CardService(
         if (flashcardQuality is null) return false;
 
         // 5. SRS Algorithm Calculation
-        var result = algorithmService.Calculate((int)flashcardQuality, card.State, card.Interval, card.EaseFactor,
+        FlashcardResult result = algorithmService.Calculate((int)flashcardQuality, card.State, card.Interval,
+            card.EaseFactor,
             card.StepIndex);
 
         // 6. Update Daily Statistics (Including the missing DATE check)
-        var dailyCount = await context.DailyCounts
-                             .FirstOrDefaultAsync(x => x.DeckId == card.Note.DeckId
-                                                       && x.CardState == result.State
-                                                       && x.Date == today)
-                         ?? new DeckDailyCount
-                         {
-                             DeckId = card.Note.DeckId,
-                             CardState = result.State,
-                             Date = today
-                         };
+        DeckDailyCount dailyCount = await context.DailyCounts
+                                        .FirstOrDefaultAsync(x => x.DeckId == card.Note.DeckId
+                                                                  && x.CardState == result.State
+                                                                  && x.Date == today)
+                                    ?? new DeckDailyCount
+                                    {
+                                        DeckId = card.Note.DeckId,
+                                        CardState = result.State,
+                                        Date = today
+                                    };
 
         if (dailyCount.Id == 0) context.DailyCounts.Add(dailyCount);
         dailyCount.Count += 1;
@@ -190,10 +191,7 @@ public class CardService(
         card.StepIndex = result.LearningStepIndex;
 
         // 8. Update Streak
-        if (!user.UserStreaks.Contains(today))
-        {
-            user.UserStreaks.Add(today);
-        }
+        if (!user.UserStreaks.Contains(today)) user.UserStreaks.Add(today);
 
         await context.SaveChangesAsync();
         return true;

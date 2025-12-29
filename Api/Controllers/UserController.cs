@@ -41,7 +41,7 @@ public class UserController(IUserService userService) : ControllerBase
 
         return NoContent();
     }
-    
+
     [HttpGet]
     public async Task<ActionResult<UserResponse>> Get()
     {
@@ -49,7 +49,7 @@ public class UserController(IUserService userService) : ControllerBase
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
         UserResponse? user = await userService.Get(userId);
-        if (user  is null) return Forbid();
+        if (user is null) return Forbid();
 
         return Ok(user);
     }

@@ -7,7 +7,6 @@ using Core.Model.Helper;
 using Core.Services;
 using Core.Services.Helper.Interface;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Test.Helper;
 
@@ -16,11 +15,11 @@ namespace Test.Service;
 public class DeckServiceTests : DatabaseSetupHelper
 {
     private readonly DataContext _context;
-    private readonly Mock<IFlashcardAlgorithmService> _mockAlgorithmService;
     private readonly DeckService _deckService;
-    private readonly string _testCreatorId = "test-user-123";
-    private readonly string _otherCreatorId = "other-user-456";
     private readonly Faker _faker;
+    private readonly Mock<IFlashcardAlgorithmService> _mockAlgorithmService;
+    private readonly string _otherCreatorId = "other-user-456";
+    private readonly string _testCreatorId = "test-user-123";
 
     public DeckServiceTests()
     {
@@ -50,10 +49,7 @@ public class DeckServiceTests : DatabaseSetupHelper
         // Create note types for test user
         NoteTypeFaker noteTypeFaker = new(_testCreatorId);
         List<NoteType>? noteTypes = noteTypeFaker.Generate(2);
-        for (int i = 0; i < noteTypes.Count; i++)
-        {
-            noteTypes[i].Id = i + 1;
-        }
+        for (int i = 0; i < noteTypes.Count; i++) noteTypes[i].Id = i + 1;
 
         _context.NoteTypes.AddRange(noteTypes);
 
@@ -82,7 +78,7 @@ public class DeckServiceTests : DatabaseSetupHelper
 
             foreach (Note note in notes)
             {
-                note.Id = (i * 10) + notes.IndexOf(note) + 1;
+                note.Id = i * 10 + notes.IndexOf(note) + 1;
                 decks[i].Notes.Add(note);
 
                 // Ensure cards are properly linked to their note
@@ -111,14 +107,13 @@ public class DeckServiceTests : DatabaseSetupHelper
 
         _context.SaveChanges();
     }
-    
+
     private ICollection<DeckDailyCount> GenerateDailyCounts(int deckId)
     {
         List<DeckDailyCount> counts = [];
         int days = _faker.Random.Int(3, 7);
 
         for (int i = 0; i < days; i++)
-        {
             counts.Add(new DeckDailyCount
             {
                 DeckId = deckId,
@@ -126,7 +121,6 @@ public class DeckServiceTests : DatabaseSetupHelper
                 CardState = _faker.PickRandom<CardState>(),
                 Count = _faker.Random.Int(1, 50)
             });
-        }
 
         return counts;
     }
@@ -172,7 +166,7 @@ public class DeckServiceTests : DatabaseSetupHelper
             OptionRequest = new DeckOptionRequest
             {
                 NewLimitPerDay = 20,
-                ReviewLimitPerDay = 100,
+                ReviewLimitPerDay = 100
             }
         };
 
@@ -227,7 +221,7 @@ public class DeckServiceTests : DatabaseSetupHelper
             OptionRequest = new DeckOptionRequest
             {
                 NewLimitPerDay = 30,
-                ReviewLimitPerDay = 150,
+                ReviewLimitPerDay = 150
             }
         };
 
@@ -462,10 +456,7 @@ public class DeckServiceTests : DatabaseSetupHelper
 
         // Add only new cards (no review cards)
         List<(CardState? state, DateTime? dueDate)> cards = [];
-        for (int i = 0; i < 5; i++)
-        {
-            cards.Add((CardState.New, null));
-        }
+        for (int i = 0; i < 5; i++) cards.Add((CardState.New, null));
 
         await GenerateCards(_testCreatorId, deck.Id, cards);
 
@@ -512,7 +503,6 @@ public class DeckServiceTests : DatabaseSetupHelper
     }
 
 
-
     [Fact]
     public async Task GetSummary_DeckExistsWithDueCards_ReturnsSummary()
     {
@@ -538,13 +528,10 @@ public class DeckServiceTests : DatabaseSetupHelper
             (CardState.Relearning, null),
             (CardState.Review, today),
             (CardState.Review, today.AddDays(-1)),
-            (CardState.Review, today.AddDays(1)),
+            (CardState.Review, today.AddDays(1))
         ];
         // 4 New cards
-        for (int i = 0; i < 4; i++)
-        {
-            cards.Add((CardState.New, null));
-        }
+        for (int i = 0; i < 4; i++) cards.Add((CardState.New, null));
 
         await GenerateCards(deck.CreatorId, deck.Id, cards);
 
@@ -579,7 +566,7 @@ public class DeckServiceTests : DatabaseSetupHelper
         deck.Option = new DeckOption
         {
             NewLimitPerDay = 2,
-            ReviewLimitPerDay = 3,
+            ReviewLimitPerDay = 3
         };
 
         // Clear existing cards and add many cards
@@ -587,16 +574,10 @@ public class DeckServiceTests : DatabaseSetupHelper
 
         List<(CardState? state, DateTime? dueDate)> cards = [];
         // Add many review cards
-        for (int i = 0; i < 10; i++)
-        {
-            cards.Add((CardState.Review, DateTime.UtcNow.Date.AddDays(-1)));
-        }
+        for (int i = 0; i < 10; i++) cards.Add((CardState.Review, DateTime.UtcNow.Date.AddDays(-1)));
 
         // Add many new cards
-        for (int i = 0; i < 10; i++)
-        {
-            cards.Add((CardState.New, null));
-        }
+        for (int i = 0; i < 10; i++) cards.Add((CardState.New, null));
 
         await GenerateCards(deck.CreatorId, deck.Id, cards);
 
@@ -635,22 +616,18 @@ public class DeckServiceTests : DatabaseSetupHelper
 
         // Add 30 review cards due
         for (int i = 0; i < 30; i++)
-        {
             deck.Cards.Add(new Card
             {
                 State = CardState.Review,
-                DueDate = DateTime.UtcNow.Date.AddDays(-1),
+                DueDate = DateTime.UtcNow.Date.AddDays(-1)
             });
-        }
 
         // Add 40 new cards
         for (int i = 0; i < 40; i++)
-        {
             deck.Cards.Add(new Card
             {
-                State = CardState.New,
+                State = CardState.New
             });
-        }
 
         await _context.SaveChangesAsync();
 
@@ -679,12 +656,10 @@ public class DeckServiceTests : DatabaseSetupHelper
 
         // Add only suspended cards
         for (int i = 0; i < 10; i++)
-        {
             deck.Cards.Add(new Card
             {
-                State = CardState.Suspended,
+                State = CardState.Suspended
             });
-        }
 
         _context.Decks.Add(deck);
         await _context.SaveChangesAsync();
@@ -711,10 +686,7 @@ public class DeckServiceTests : DatabaseSetupHelper
 
         // Add review cards due in future
         List<(CardState? state, DateTime? dueDate)> cards = [];
-        for (int i = 1; i <= 5; i++)
-        {
-            cards.Add((CardState.Review, today.AddDays(i)));
-        }
+        for (int i = 1; i <= 5; i++) cards.Add((CardState.Review, today.AddDays(i)));
 
         // Add one review card due today
         cards.Add((CardState.Review, today));

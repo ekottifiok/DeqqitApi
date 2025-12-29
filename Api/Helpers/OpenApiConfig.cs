@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.OpenApi;
-using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
 namespace Api.Helpers;
@@ -43,5 +40,4 @@ public static class OpenApiConfig
             options.SpecUrl = "/openapi/v1.json";
         });
     }
-    
 }

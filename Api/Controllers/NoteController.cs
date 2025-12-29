@@ -25,7 +25,8 @@ public class NoteController(INoteService noteService) : ControllerBase
     }
 
     [HttpGet("generate")]
-    public async Task<ActionResult<List<Dictionary<string, string>>>> Generate([FromQuery] GenerateAiFlashcardRequest request)
+    public async Task<ActionResult<List<Dictionary<string, string>>>> Generate(
+        [FromQuery] GenerateAiFlashcardRequest request)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();

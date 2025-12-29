@@ -5,7 +5,6 @@ using Core.Model.Helper;
 using Core.Services.Helper.Interface;
 using Core.Services.Interface;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 
 namespace Core.Services;
 
@@ -31,7 +30,7 @@ public class DeckService(DataContext context, IFlashcardAlgorithmService flashca
         if (deck is null) return 0;
         deck.Name = request.Name;
         deck.Description = request.Description;
-        deck.Option = request.OptionRequest is null ? null : (DeckOption) request.OptionRequest;
+        deck.Option = request.OptionRequest is null ? null : (DeckOption)request.OptionRequest;
         await context.SaveChangesAsync();
         return 1;
     }

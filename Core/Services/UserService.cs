@@ -29,7 +29,7 @@ public class UserService(DataContext context, IFlashcardAlgorithmService flashca
         User? user = await context.Users.FirstOrDefaultAsync(x => x.Id == id);
         if (user is null) return 0;
         user.AiProviders = request.AiProviders.Select(provider => (UserAiProvider)provider).ToList();
-        user.DeckOption =  request.DeckOption;
+        user.DeckOption = request.DeckOption;
         await context.SaveChangesAsync();
         return 1;
     }

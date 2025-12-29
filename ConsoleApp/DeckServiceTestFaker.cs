@@ -14,14 +14,14 @@ using Test.Helper;
 
 namespace ConsoleApp;
 
-class DeckServiceTestFaker : DatabaseSetupHelper
+internal class DeckServiceTestFaker : DatabaseSetupHelper
 {
     private readonly DataContext _context;
-    private readonly Mock<IFlashcardAlgorithmService> _mockAlgorithmService;
     private readonly DeckService _deckService;
-    private readonly string _testCreatorId = "test-user-123";
-    private readonly string _otherCreatorId = "other-user-456";
     private readonly Faker _faker;
+    private readonly Mock<IFlashcardAlgorithmService> _mockAlgorithmService;
+    private readonly string _otherCreatorId = "other-user-456";
+    private readonly string _testCreatorId = "test-user-123";
 
     public DeckServiceTestFaker()
     {
@@ -56,10 +56,7 @@ class DeckServiceTestFaker : DatabaseSetupHelper
         // Create note types for test user
         NoteTypeFaker noteTypeFaker = new(_testCreatorId);
         List<NoteType>? noteTypes = noteTypeFaker.Generate(2);
-        for (int i = 0; i < noteTypes.Count; i++)
-        {
-            noteTypes[i].Id = i + 1;
-        }
+        for (int i = 0; i < noteTypes.Count; i++) noteTypes[i].Id = i + 1;
 
         _context.NoteTypes.AddRange(noteTypes);
 
@@ -88,7 +85,7 @@ class DeckServiceTestFaker : DatabaseSetupHelper
 
             foreach (Note note in notes)
             {
-                note.Id = (i * 10) + notes.IndexOf(note) + 1;
+                note.Id = i * 10 + notes.IndexOf(note) + 1;
                 decks[i].Notes.Add(note);
 
                 // Ensure cards are properly linked to their note
@@ -124,7 +121,6 @@ class DeckServiceTestFaker : DatabaseSetupHelper
         int days = _faker.Random.Int(3, 7);
 
         for (int i = 0; i < days; i++)
-        {
             counts.Add(new DeckDailyCount
             {
                 DeckId = deckId,
@@ -132,7 +128,6 @@ class DeckServiceTestFaker : DatabaseSetupHelper
                 CardState = _faker.PickRandom<CardState>(),
                 Count = _faker.Random.Int(1, 50)
             });
-        }
 
         return counts;
     }
@@ -168,10 +163,7 @@ class DeckServiceTestFaker : DatabaseSetupHelper
 
         // Add review cards due in future
         List<(CardState? state, DateTime? dueDate)> cards = [];
-        for (int i = 1; i <= 5; i++)
-        {
-            cards.Add((CardState.Review, today.AddDays(i)));
-        }
+        for (int i = 1; i <= 5; i++) cards.Add((CardState.Review, today.AddDays(i)));
 
         // Add one review card due today
         cards.Add((CardState.Review, today));

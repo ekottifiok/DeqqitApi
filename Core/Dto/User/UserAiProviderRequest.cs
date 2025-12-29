@@ -11,11 +11,13 @@ public class UserAiProviderRequest
     [Required]
     [StringLength(500, MinimumLength = 3)]
     public string Key { get; set; }
-    
-    public static implicit operator UserAiProvider(UserAiProviderRequest request) => new()
-    {
-        Type = request.Type,
-        Key = request.Key,
-    };
 
+    public static implicit operator UserAiProvider(UserAiProviderRequest request)
+    {
+        return new UserAiProvider
+        {
+            Type = request.Type,
+            Key = request.Key
+        };
+    }
 }

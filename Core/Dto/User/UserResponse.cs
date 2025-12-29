@@ -14,7 +14,6 @@ public class UserResponse
     // The Implicit Converter
     public static implicit operator UserResponse(Model.User user)
     {
-
         return new UserResponse
         {
             UserId = user.Id,

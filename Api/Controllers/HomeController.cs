@@ -12,15 +12,19 @@ public class HomeController : ControllerBase
     {
         return new GetMessage("Welcome to Zorbtion Flashcard API");
     }
+
     [HttpGet("/enums")]
     public AllEnumsResponse GetAllEnums()
     {
-        return new AllEnumsResponse(Enum.GetNames<CardState>(), 
+        return new AllEnumsResponse(Enum.GetNames<CardState>(),
             Enum.GetNames<DeckOptionSortOrder>(),
             Enum.GetNames<UserAiProviderType>());
-        
     }
-    
-    public record AllEnumsResponse(IEnumerable<string> CardStates, IEnumerable<string> DeckOptionSortOrder, IEnumerable<string> UserAiProviderType);
+
+    public record AllEnumsResponse(
+        IEnumerable<string> CardStates,
+        IEnumerable<string> DeckOptionSortOrder,
+        IEnumerable<string> UserAiProviderType);
+
     public record GetMessage(string Message);
 }

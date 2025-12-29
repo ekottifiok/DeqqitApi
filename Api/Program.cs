@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Api.BackgroundService;
 using Api.Helpers;
 using Api.Middleware;
 using Core.Data;
@@ -16,6 +17,8 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<DataContext>(options =>
     options.EnableSensitiveDataLogging().UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+
+builder.Services.AddHostedService<DailyCleanupService>();
 
 // Add services to the container.
 builder.Services.AddScoped<ICardService, CardService>();

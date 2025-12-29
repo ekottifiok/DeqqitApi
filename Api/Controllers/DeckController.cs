@@ -28,7 +28,8 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
     }
 
     [HttpGet("{id:int}/notes")]
-    public async Task<ActionResult<PaginationResult<Note>>> GetAllNotes(int id, [FromQuery]PaginationRequest<int> request)
+    public async Task<ActionResult<PaginationResult<Note>>> GetAllNotes(int id,
+        [FromQuery] PaginationRequest<int> request)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();
@@ -39,7 +40,8 @@ public class DeckController(IDeckService deckService, INoteService noteService, 
     }
 
     [HttpGet("{id:int}/cards")]
-    public async Task<ActionResult<PaginationResult<Card>>> GetAllCards(int id, [FromQuery]PaginationRequest<int> request)
+    public async Task<ActionResult<PaginationResult<Card>>> GetAllCards(int id,
+        [FromQuery] PaginationRequest<int> request)
     {
         string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Forbid();
