@@ -13,7 +13,7 @@ namespace Core.Services;
 public class CardService(
     DataContext context,
     ITemplateService templateService,
-    IFlashcardAlgorithmService algorithmService)
+    IFlashcardAlgorithmService algorithmService, ITimeService timeService)
     : BaseService, ICardService
 {
     public async Task<PaginationResult<Card>> Get(string creatorId, int deckId, PaginationRequest<int> request)
@@ -24,35 +24,61 @@ public class CardService(
         return await PaginateAsync(query, request);
     }
 
-    public async Task<Card?> Get(string creatorId, int id)
+    public async Task<ResponseResult<Card>> Get(string creatorId, int id)
     {
-        return await context.Cards.FirstOrDefaultAsync(x => x.Note.CreatorId == creatorId && x.Id == id);
+        Card? card = await context.Cards
+            .FirstOrDefaultAsync(x => x.Note.CreatorId == creatorId && x.Id == id);
+            
+        if (card == null)
+        {
+            return ResponseResult<Card>.Failure(
+                ErrorCode.NotFound,
+                $"Card with ID {id} not found or you don't have permission to access it."
+            );
+        }
+        
+        return ResponseResult<Card>.Success(card);
     }
 
-    public async Task<int> UpdateCardState(string creatorId, int id, UpdateCardStateRequest request)
+    public async Task<ResponseResult<bool>> UpdateCardState(string creatorId, int id, UpdateCardStateRequest request)
     {
-        IQueryable<Card> query = context.Cards.Where(x => x.Id == id && x.Note.CreatorId == creatorId);
         (int Interval, int Repetitions, double EaseFactor, DateTime DueDate, int StepIndex) result =
             Card.FlashcardData();
-        return request switch
+            
+        int affectedRows = request switch
         {
-            UpdateCardStateRequest.Suspend => await query.ExecuteUpdateAsync(x =>
-                x.SetProperty(u => u.State, CardState.Suspended)),
-            UpdateCardStateRequest.Unsuspend or UpdateCardStateRequest.Reset => await query.ExecuteUpdateAsync(x => x
-                .SetProperty(u => u.State, CardState.New)
-                .SetProperty(u => u.Interval, result.Interval)
-                .SetProperty(u => u.Repetitions, result.Repetitions)
-                .SetProperty(u => u.EaseFactor, result.EaseFactor)
-                .SetProperty(u => u.DueDate, DateTime.UtcNow)
-                .SetProperty(u => u.StepIndex, result.StepIndex)
-            ),
-            _ => throw new ArgumentOutOfRangeException(nameof(request), request, null)
+            UpdateCardStateRequest.Suspend => await context.Cards
+                .Where(x => x.Id == id && x.Note.CreatorId == creatorId)
+                .ExecuteUpdateAsync(x => x.SetProperty(u => u.State, CardState.Suspended)),
+                
+            UpdateCardStateRequest.Unsuspend or UpdateCardStateRequest.Reset => await context.Cards
+                .Where(x => x.Id == id && x.Note.CreatorId == creatorId)
+                .ExecuteUpdateAsync(x => x
+                    .SetProperty(u => u.State, CardState.New)
+                    .SetProperty(u => u.Interval, result.Interval)
+                    .SetProperty(u => u.Repetitions, result.Repetitions)
+                    .SetProperty(u => u.EaseFactor, result.EaseFactor)
+                    .SetProperty(u => u.DueDate, timeService.UtcNow)
+                    .SetProperty(u => u.StepIndex, result.StepIndex)
+                ),
+                
+            _ => 0
         };
+
+        if (affectedRows == 0)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound,
+                $"Card with ID {id} not found or you don't have permission to update it."
+            );
+        }
+        
+        return ResponseResult<bool>.Success(true);
     }
 
-    public async Task<CardResponse?> GetNextStudyCard(string creatorId, int deckId)
+    public async Task<ResponseResult<CardResponse>> GetNextStudyCard(string creatorId, int deckId)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = timeService.UtcNow;
 
         // 1. Fetch Deck Settings and Daily Progress
         var deck = await context.Decks
@@ -70,7 +96,13 @@ public class CardService(
             })
             .FirstOrDefaultAsync();
 
-        if (deck == null) return null;
+        if (deck == null)
+        {
+            return ResponseResult<CardResponse>.Failure(
+                ErrorCode.NotFound,
+                $"Deck with ID {deckId} not found."
+            );
+        }
 
         IQueryable<Card> baseQuery = context.Cards
             .Include(c => c.Template)
@@ -78,8 +110,6 @@ public class CardService(
             .Where(c => c.Note.DeckId == deckId && c.Note.CreatorId == creatorId && c.State != CardState.Suspended);
 
         // --- PRIORITY 1: URGENT LEARNING ---
-        // Learning/Relearning cards always come first because they are time-sensitive (1m, 10m).
-
         Card? learningCard =
             await ApplySortOrder(
                     baseQuery.Where(c =>
@@ -88,7 +118,11 @@ public class CardService(
                     deck.Option.SortOrder)
                 .FirstOrDefaultAsync();
 
-        if (learningCard != null) return await MapToResponse(learningCard);
+        if (learningCard != null) 
+        {
+            CardResponse response = await MapToResponse(learningCard);
+            return ResponseResult<CardResponse>.Success(response);
+        }
 
         // --- PRIORITY 2: THE MIX (Review & New) ---
         int reviewsLeft = Math.Max(0, deck.Option.ReviewLimitPerDay - deck.ReviewDone);
@@ -97,8 +131,6 @@ public class CardService(
         if (deck.Option.InterdayLearningMix)
         {
             // ADVANCED: Interleave New and Review
-            // If the user wants to see 3 reviews then 1 new, we check a ratio or simply pick the most "overdue"
-            // For now, a simple 'Mix' picks whichever is more urgent or uses the SortOrder across both sets.
             Card? mixedCard = await ApplySortOrder(
                     baseQuery.Where(c =>
                         (c.State == CardState.Review && c.DueDate <= now && reviewsLeft > 0) ||
@@ -106,35 +138,55 @@ public class CardService(
                     deck.Option.SortOrder)
                 .FirstOrDefaultAsync();
 
-            if (mixedCard != null) return await MapToResponse(mixedCard);
+            if (mixedCard == null)
+                return ResponseResult<CardResponse>.Failure(
+                    ErrorCode.NotFound,
+                    "No cards available for study at this time."
+                );
+            CardResponse response = await MapToResponse(mixedCard);
+            return ResponseResult<CardResponse>.Success(response);
         }
-        else
+
+        // CLASSIC: Finish Reviews, then start New
+        if (reviewsLeft > 0)
         {
-            // CLASSIC: Finish Reviews, then start New
-            if (reviewsLeft > 0)
+            Card? reviewCard =
+                await ApplySortOrder(
+                    baseQuery.Where(c => c.State == CardState.Review && c.DueDate <= now),
+                    deck.Option.SortOrder).FirstOrDefaultAsync();
+            if (reviewCard != null)
             {
-                Card? reviewCard =
-                    await ApplySortOrder(
-                        baseQuery.Where(c => c.State == CardState.Review && c.DueDate <= now),
-                        deck.Option.SortOrder).FirstOrDefaultAsync();
-                if (reviewCard != null) return await MapToResponse(reviewCard);
+                CardResponse response = await MapToResponse(reviewCard);
+                return ResponseResult<CardResponse>.Success(response);
             }
-
-            if (newLeft <= 0) return null;
-
-            Card? newCard =
-                await ApplySortOrder(baseQuery.Where(c => c.State == CardState.New), deck.Option.SortOrder)
-                    .FirstOrDefaultAsync();
-            if (newCard != null) return await MapToResponse(newCard);
         }
 
-        return null;
+        if (newLeft <= 0)
+        {
+            return ResponseResult<CardResponse>.Failure(
+                ErrorCode.InvalidState,
+                "Daily new card limit reached for this deck."
+            );
+        }
+
+        Card? newCard =
+            await ApplySortOrder(baseQuery.Where(c => c.State == CardState.New), deck.Option.SortOrder)
+                .FirstOrDefaultAsync();
+        if (newCard == null)
+            return ResponseResult<CardResponse>.Failure(
+                ErrorCode.NotFound,
+                "No cards available for study at this time."
+            );
+        {
+            CardResponse response = await MapToResponse(newCard);
+            return ResponseResult<CardResponse>.Success(response);
+        }
+
     }
 
-    // TODO: Add the User Request
-    public async Task<CardResponse?> SubmitCardReview(string creatorId, int id, CardSubmitRequest request)
+    public async Task<ResponseResult<CardResponse>> SubmitCardReview(string creatorId, int id, CardSubmitRequest request)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = timeService.UtcNow;
         DateOnly today = DateOnly.FromDateTime(now);
 
         // 1. Fetch Card with essential relations
@@ -143,16 +195,35 @@ public class CardService(
             .Include(x => x.Template)
             .FirstOrDefaultAsync(x => x.Id == id && x.Note.CreatorId == creatorId && x.State != CardState.Suspended);
 
-        if (card is null) return null;
+        if (card is null)
+        {
+            return ResponseResult<CardResponse>.Failure(
+                ErrorCode.NotFound,
+                $"Card with ID {id} not found or you don't have permission to review it."
+            );
+        }
 
-        // 2. Fetch User with Tracking (needed to update Streaks)
-        // We fetch the whole user to avoid the "Owned Entity Projection" crash
+        // 2. Fetch User with Tracking
         User? user = await context.Users
             .FirstOrDefaultAsync(x => x.Id == creatorId);
+            
+        if (user == null)
+        {
+            return ResponseResult<CardResponse>.Failure(
+                ErrorCode.NotFound,
+                "User not found."
+            );
+        }
 
         // 3. Find AI Provider
-        UserAiProvider? provider = user?.AiProviders.FirstOrDefault(x => x.Id == request.UserProviderId);
-        if (provider is null) return null;
+        UserAiProvider? provider = user.AiProviders.FirstOrDefault(x => x.Id == request.UserProviderId);
+        if (provider is null)
+        {
+            return ResponseResult<CardResponse>.Failure(
+                ErrorCode.NotFound,
+                $"AI provider with ID {request.UserProviderId} not found or you don't have permission to use it."
+            );
+        }
 
         // 4. AI Evaluation
         IAiService aiService = AiServiceFactory.GetUserService(provider);
@@ -162,14 +233,19 @@ public class CardService(
         );
 
         int? flashcardQuality = await aiService.CheckAnswer(front, request.Answer, back);
-        if (flashcardQuality is null) return null;
+        if (flashcardQuality is null)
+        {
+            return ResponseResult<CardResponse>.Failure(
+                ErrorCode.InvalidState,
+                "Unable to evaluate answer with AI provider."
+            );
+        }
 
         // 5. SRS Algorithm Calculation
         FlashcardResult result = algorithmService.Calculate((int)flashcardQuality, card.State, card.Interval,
-            card.EaseFactor,
-            card.StepIndex);
+            card.EaseFactor, card.StepIndex);
 
-        // 6. Update Daily Statistics (Including the missing DATE check)
+        // 6. Update Daily Statistics
         DeckDailyCount? dailyCount = await context.DailyCounts
             .FirstOrDefaultAsync(x => x.DeckId == card.Note.DeckId
                                       && x.CardState == result.State
@@ -193,10 +269,12 @@ public class CardService(
         card.StepIndex = result.LearningStepIndex;
 
         // 8. Update Streak
-        if (user != null && !user.UserStreaks.Contains(today)) user.UserStreaks.Add(today);
+        if (!user.UserStreaks.Contains(today)) user.UserStreaks.Add(today);
 
         await context.SaveChangesAsync();
-        return await MapToResponse(card);
+        
+        CardResponse response = await MapToResponse(card);
+        return ResponseResult<CardResponse>.Success(response);
     }
 
     private async Task<CardResponse> MapToResponse(Card card)
@@ -210,13 +288,13 @@ public class CardService(
         );
     }
 
-    private IQueryable<Card> ApplySortOrder(IQueryable<Card> query, DeckOptionSortOrder sortOrder)
+    private static IQueryable<Card> ApplySortOrder(IQueryable<Card> query, DeckOptionSortOrder sortOrder)
     {
         return sortOrder switch
         {
             DeckOptionSortOrder.Random => query.OrderBy(c => EF.Functions.Random()),
             DeckOptionSortOrder.DateAdded => query.OrderBy(c => c.Id),
-            DeckOptionSortOrder.DueDate => query.OrderBy(c => c.DueDate), // Default Anki behavior
+            DeckOptionSortOrder.DueDate => query.OrderBy(c => c.DueDate),
             _ => throw new ArgumentOutOfRangeException(nameof(sortOrder), sortOrder, null)
         };
     }

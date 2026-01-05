@@ -1,9 +1,11 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 
 namespace Core.Model;
 
 public class User : IdentityUser
 {
+    [Required]
     public string ProfileImageUrl { get; set; } = "https://avatar.iran.liara.run/public";
     public List<UserRefreshToken> RefreshTokens { get; set; } = [];
     public List<DateOnly> UserStreaks { get; set; } = [];

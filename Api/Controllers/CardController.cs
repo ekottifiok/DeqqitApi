@@ -1,5 +1,6 @@
-using System.Security.Claims;
+using Api.Services;
 using Core.Dto.Card;
+using Core.Dto.Common;
 using Core.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,29 +10,25 @@ namespace Api.Controllers;
 [Authorize]
 [Route("api/[controller]/{id:int}")]
 [ApiController]
-public class CardController(ICardService cardService) : ControllerBase
+public class CardController(ICardService cardService, ICurrentUserService currentUserService): BaseController
 {
     [HttpPut("")]
-    public async Task<ActionResult> Update(int id, UpdateCardStateRequest request)
+    public async Task<IActionResult> Update(int id, UpdateCardStateRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int updatedCount = await cardService.UpdateCardState(userId, id, request);
-        if (updatedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await cardService.UpdateCardState(userId, id, request);
+        return ProcessResult(result);
     }
 
     [HttpPost("submit")]
-    public async Task<ActionResult<CardResponse>> Submit(int id, CardSubmitRequest request)
+    public async Task<IActionResult> Submit(int id, CardSubmitRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        CardResponse? cardResponse = await cardService.SubmitCardReview(userId, id, request);
-        if (cardResponse is null) return BadRequest();
-
-        return Ok(cardResponse);
+        ResponseResult<CardResponse> result = await cardService.SubmitCardReview(userId, id, request);
+        return ProcessResult(result);
     }
 }

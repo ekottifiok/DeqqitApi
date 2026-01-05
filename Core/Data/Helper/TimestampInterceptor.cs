@@ -15,9 +15,15 @@ public class TimestampInterceptor : SaveChangesInterceptor
         DateTime now = DateTime.UtcNow;
 
         foreach (EntityEntry<IHasTimestamps> entry in entries)
-            if (entry.State == EntityState.Added)
-                entry.Entity.CreatedAt = now;
-            else if (entry.State == EntityState.Modified) entry.Entity.UpdatedAt = now;
+            switch (entry.State)
+            {
+                case EntityState.Added:
+                    entry.Entity.CreatedAt = now;
+                    break;
+                case EntityState.Modified:
+                    entry.Entity.UpdatedAt = now;
+                    break;
+            }
         return base.SavingChangesAsync(eventData, result, ct);
     }
 }

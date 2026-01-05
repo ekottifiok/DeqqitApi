@@ -30,21 +30,3 @@ public class UnitTest1 : IClassFixture<UnitSetup>
         Assert.Equal(1, 1);
     }
 }
-
-public class UnitSetup : IAsyncLifetime
-{
-    public string Message { get; set; }
-
-    public Task InitializeAsync()
-    {
-        Console.WriteLine("Initializing...");
-        Message = "Hello";
-        return Task.CompletedTask;
-    }
-
-    public Task DisposeAsync()
-    {
-        Console.WriteLine("Disposed.");
-        return Task.CompletedTask;
-    }
-}

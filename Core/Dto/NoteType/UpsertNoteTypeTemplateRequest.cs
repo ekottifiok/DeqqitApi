@@ -11,12 +11,12 @@ public class UpsertNoteTypeTemplateRequest
     [Required]
     [ValidTemplate]
     [StringLength(500, MinimumLength = 2)]
-    public string Front { get; set; }
+    public required string Front { get; set; }
 
     [Required]
     [ValidTemplate]
     [StringLength(500, MinimumLength = 2)]
-    public string Back { get; set; }
+    public required string Back { get; set; }
 
     // Request -> Entity
     public static implicit operator NoteTypeTemplate(UpsertNoteTypeTemplateRequest request)

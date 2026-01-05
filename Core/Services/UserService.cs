@@ -1,4 +1,5 @@
 using Core.Data;
+using Core.Dto.Common;
 using Core.Dto.Deck;
 using Core.Dto.User;
 using Core.Model;
@@ -9,44 +10,91 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Core.Services;
 
-// Use a datetimeprovider for better testing
-public class UserService(DataContext context, IFlashcardAlgorithmService flashcardAlgorithmService) : IUserService
+public class UserService(DataContext context, IFlashcardAlgorithmService flashcardAlgorithmService, ITimeService timeService) : IUserService
 {
-    public async Task<int> UpdateProfileImage(string id, string profileImage)
+    public async Task<ResponseResult<bool>> UpdateProfileImage(string id, string profileImage)
     {
-        return await context.Users
+        int affectedRows = await context.Users
             .Where(x => x.Id == id)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.ProfileImageUrl, profileImage));
+
+        if (affectedRows == 0)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound,
+                $"User with ID '{id}' not found."
+            );
+        }
+
+        return ResponseResult<bool>.Success(true);
     }
 
-    public async Task<UserResponse?> Get(string id)
+    public async Task<ResponseResult<UserResponse>> Get(string id)
     {
-        return await context.Users.Where(x => x.Id == id).Select(x => (UserResponse)x).FirstOrDefaultAsync();
+        UserResponse? userResponse = await context.Users
+            .Where(x => x.Id == id)
+            .Select(x => (UserResponse)x)
+            .FirstOrDefaultAsync();
+
+        if (userResponse == null)
+        {
+            return ResponseResult<UserResponse>.Failure(
+                ErrorCode.NotFound,
+                $"User with ID '{id}' not found."
+            );
+        }
+
+        return ResponseResult<UserResponse>.Success(userResponse);
     }
 
-
-    public async Task<int?> GetDefaultProviderId(string userId)
+    public async Task<ResponseResult<int?>> GetDefaultProviderId(string userId)
     {
         User? user = await context.Users
             .Include(u => u.AiProviders)
             .FirstOrDefaultAsync(x => x.Id == userId);
 
-        return user?.AiProviders.FirstOrDefault()?.Id;
+        if (user == null)
+        {
+            return ResponseResult<int?>.Failure(
+                ErrorCode.NotFound,
+                $"User with ID '{userId}' not found."
+            );
+        }
+
+        int? providerId = user.AiProviders.FirstOrDefault()?.Id;
+        
+        if (providerId == null)
+        {
+            return ResponseResult<int?>.Failure(
+                ErrorCode.NotFound,
+                $"User with ID '{userId}' does not have any AI providers configured."
+            );
+        }        
+        return ResponseResult<int?>.Success(providerId);
     }
 
-    public async Task<int> Update(string id, UpdateUserRequest request)
+    public async Task<ResponseResult<bool>> Update(string id, UpdateUserRequest request)
     {
         User? user = await context.Users.FirstOrDefaultAsync(x => x.Id == id);
-        if (user is null) return 0;
+
+        if (user is null)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound,
+                $"User with ID '{id}' not found."
+            );
+        }
+
         user.AiProviders = request.AiProviders.Select(provider => (UserAiProvider)provider).ToList();
         user.DeckOption = request.DeckOption;
         await context.SaveChangesAsync();
-        return 1;
+
+        return ResponseResult<bool>.Success(true);
     }
 
-    public async Task<UserDashboardResponse?> GetUserDashboard(string userId)
+    public async Task<ResponseResult<UserDashboardResponse>> GetUserDashboard(string userId)
     {
-        DateTime today = DateTime.UtcNow;
+        DateTime today = timeService.UtcNow;
 
         // COMBINED QUERY: One trip to the database for everything
         var result = await context.Users
@@ -75,7 +123,13 @@ public class UserService(DataContext context, IFlashcardAlgorithmService flashca
             })
             .FirstOrDefaultAsync();
 
-        if (result == null) return null;
+        if (result == null)
+        {
+            return ResponseResult<UserDashboardResponse>.Failure(
+                ErrorCode.NotFound,
+                $"User with ID '{userId}' not found."
+            );
+        }
 
         // Mapping to DTOs
         IEnumerable<UserDeckSummaryResponse> deckResponses = result.Decks.Select(d => new UserDeckSummaryResponse(
@@ -95,19 +149,24 @@ public class UserService(DataContext context, IFlashcardAlgorithmService flashca
             .Select(d => d.AvgEase!.Value)
             .ToList();
 
-        double retentionRate = validEaseFactors.Any()
+        double retentionRate = validEaseFactors.Count != 0
             ? flashcardAlgorithmService.EstimateRetention(validEaseFactors.Average())
             : 0.0;
 
-        return new UserDashboardResponse(result.UserStreaks.Count, retentionRate, deckResponses);
+        UserDashboardResponse dashboardResponse =
+            new UserDashboardResponse(result.UserStreaks.Count, retentionRate, deckResponses);
+
+        return ResponseResult<UserDashboardResponse>.Success(dashboardResponse);
     }
 
-    // TODO: Maybe store timezone for more accurate value
-    public async Task UpdateStreakDaily()
+    public async Task<ResponseResult<bool>> UpdateStreakDaily()
     {
-        DateOnly yesterdayDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
-        await context.Users
+        DateOnly yesterdayDate = DateOnly.FromDateTime(timeService.UtcNow.AddDays(-1));
+
+        int affectedRows = await context.Users
             .Where(x => !x.UserStreaks.Contains(yesterdayDate))
             .ExecuteUpdateAsync(x => x.SetProperty(u => u.UserStreaks, []));
+
+        return ResponseResult<bool>.Success(true);
     }
 }

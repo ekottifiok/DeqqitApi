@@ -24,6 +24,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         // Core Services
         services.AddScoped<IFlashcardAlgorithmService, FlashcardAlgorithmService>();
         services.AddScoped<ITemplateService, TemplateService>();
+        services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<ICardService, CardService>();
         services.AddScoped<IDeckService, DeckService>();
         services.AddScoped<INoteService, NoteService>();

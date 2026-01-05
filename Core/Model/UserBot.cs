@@ -7,8 +7,8 @@ namespace Core.Model;
 public class UserBot
 {
     public int Id { get; set; }
-    public string BotId { get; set; }
-    public string UserId { get; set; }
+    public required string BotId { get; set; }
+    public required string UserId { get; set; }
     public User User { get; set; }
     public UserBotType Type { get; set; }
 }

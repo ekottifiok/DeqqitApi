@@ -7,11 +7,12 @@ using Core.Services.Helper;
 using Core.Services.Helper.Interface;
 using Core.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Z.EntityFramework.Extensions;
 
 namespace Core.Services;
 
-public class NoteService(DataContext context, ITemplateService templateService) : BaseService, INoteService
+public class NoteService(DataContext context, ITemplateService templateService, ILogger<NoteService> logger) : BaseService, INoteService
 {
     public async Task<PaginationResult<Note>> Get(string creatorId, int deckId, PaginationRequest<int> request)
     {
@@ -20,60 +21,150 @@ public class NoteService(DataContext context, ITemplateService templateService) 
         return await PaginateAsync(query, request);
     }
 
-    public async Task<Note?> Get(string creatorId, int id)
+    public async Task<ResponseResult<Note>> Get(string creatorId, int id)
     {
-        return await context.Notes.AsNoTracking()
+        Note? note = await context.Notes.AsNoTracking()
             .FirstOrDefaultAsync(x => x.CreatorId == creatorId && x.Id == id);
+            
+        if (note == null)
+        {
+            return ResponseResult<Note>.Failure(
+                ErrorCode.NotFound, 
+                $"Note with ID {id} not found or you don't have permission to access it."
+            );
+        }
+        
+        return ResponseResult<Note>.Success(note);
     }
 
-
-    public async Task<int> Update(string creatorId, int id, UpdateNoteRequest request)
+    public async Task<ResponseResult<bool>> Update(string creatorId, int id, UpdateNoteRequest request)
     {
         Note? note = await context.Notes
             .Include(x => x.NoteType)
             .ThenInclude(noteType => noteType.Templates)
             .FirstOrDefaultAsync(x => x.CreatorId == creatorId && x.Id == id);
-        if (note == null) return 0;
+            
+        if (note == null)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound, 
+                $"Note with ID {id} not found or you don't have permission to update it."
+            );
+        }
 
         List<string> fields = templateService.GetAllFields(TemplateService.GetField(note.NoteType.Templates));
         note.Data = Cleanup(fields, request.Data);
         note.Tags = request.Tags;
+        
         await context.SaveChangesAsync();
-        return 1;
+        
+        return ResponseResult<bool>.Success(true);
     }
 
-    public async Task<List<Dictionary<string, string>>?> GenerateFlashcards(string creatorId, int providerId,
-        int noteTypeId, string description)
+    public async Task<ResponseResult<List<Dictionary<string, string>>>> GenerateFlashcards(
+        string creatorId, int providerId, int noteTypeId, string description)
     {
-        List<UserAiProvider> providers = await context.Users.Include(x => x.AiProviders).Where(x => x.Id == creatorId)
-            .AsNoTracking().Select(x => x.AiProviders)
+        List<UserAiProvider> providers = await context.Users
+            .Include(x => x.AiProviders)
+            .Where(x => x.Id == creatorId)
+            .AsNoTracking()
+            .Select(x => x.AiProviders)
             .FirstOrDefaultAsync() ?? [];
-        providers.ForEach(x => Console.WriteLine($"ID: {x.Id}, Key: {x.Key}, Type: {x.Type}"));
+            
         UserAiProvider? provider = providers.FirstOrDefault(x => x.Id == providerId);
-        if (provider is null) return null;
+        
+        if (provider is null)
+        {
+            return ResponseResult<List<Dictionary<string, string>>>.Failure(
+                ErrorCode.NotFound, 
+                $"AI provider with ID {providerId} not found or you don't have permission to use it."
+            );
+        }
 
-        List<NoteTypeTemplate> templates =
-            await context.NoteTypeTemplates.AsNoTracking().Where(x => x.NoteTypeId == noteTypeId).ToListAsync();
+        List<NoteTypeTemplate> templates = await context.NoteTypeTemplates
+            .AsNoTracking()
+            .Where(x => x.NoteTypeId == noteTypeId)
+            .ToListAsync();
+            
+        if (templates.Count == 0)
+        {
+            return ResponseResult<List<Dictionary<string, string>>>.Failure(
+                ErrorCode.NotFound, 
+                $"No templates found for note type with ID {noteTypeId}."
+            );
+        }
+
         IAiService? aiService = AiServiceFactory.GetUserService(provider);
 
         List<string> fields = templateService.GetAllFields(TemplateService.GetField(templates));
+        
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return ResponseResult<List<Dictionary<string, string>>>.Failure(
+                ErrorCode.InvalidState, 
+                "Description cannot be empty."
+            );
+        }
+
         List<Dictionary<string, string>>? flashcards = await aiService.GenerateFlashcard(fields, description);
-        return flashcards ?? null;
+        
+        if (flashcards == null || flashcards.Count == 0)
+        {
+            return ResponseResult<List<Dictionary<string, string>>>.Failure(
+                ErrorCode.InvalidState, 
+                "No flashcards were generated from the provided description."
+            );
+        }
+        
+        return ResponseResult<List<Dictionary<string, string>>>.Success(flashcards);
     }
 
-    public async Task<bool> Create(string creatorId, int deckId, int noteTypeId, List<CreateNoteRequest> request)
+    public async Task<ResponseResult<bool>> Create(string creatorId, int deckId, int noteTypeId, List<CreateNoteRequest> request)
     {
+        if (request.Count == 0)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.InvalidState, 
+                "No note data provided."
+            );
+        }
+
         bool doesDeckExist = await context.Decks.AnyAsync(x => x.Id == deckId && x.CreatorId == creatorId);
-        if (!doesDeckExist) return false;
+        
+        if (!doesDeckExist)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound, 
+                $"Deck with ID {deckId} not found or you don't have permission to add notes to it."
+            );
+        }
+        
         var noteType = await context.NoteTypes
             .Include(x => x.Templates)
             .Select(x => new { x.Id, x.CreatorId, x.Templates })
             .FirstOrDefaultAsync(x => x.Id == noteTypeId && (x.CreatorId == creatorId || x.CreatorId == null));
-        if (noteType == null) return false;
+            
+        if (noteType == null)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound, 
+                $"Note type with ID {noteTypeId} not found or you don't have permission to use it."
+            );
+        }
+
+        if (noteType.Templates.Count == 0)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.InvalidState, 
+                $"Note type with ID {noteTypeId} has no templates configured."
+            );
+        }
 
         List<string> fields = templateService.GetAllFields(TemplateService.GetField(noteType.Templates));
+        
         (int Interval, int Repetitions, double EaseFactor, DateTime DueDate, int StepIndex) flashcardData =
             Card.FlashcardData();
+            
         List<Note> notes = request.Select(x => new Note
             {
                 DeckId = deckId,
@@ -93,22 +184,45 @@ public class NoteService(DataContext context, ITemplateService templateService) 
                 }).ToList()
             }
         ).Where(n => n.Data.Count > 0).ToList();
+        
+        if (notes.Count == 0)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.InvalidState, 
+                "No valid notes to create after data cleanup."
+            );
+        }
+
         BulkOptimizedAnalysis? analysis = await context.BulkInsertOptimizedAsync(notes,
             options => { options.IncludeGraph = true; });
-        if (!analysis.IsOptimized) Console.WriteLine(analysis.TipsText); // View recommendations to optimize
-        return true;
+            
+        if (!analysis.IsOptimized)
+        {
+            // TODO: Make it better
+            logger.LogInformation("AI analysis tips: {}", analysis.TipsText);
+        }
+        
+        return ResponseResult<bool>.Success(true);
     }
 
-    public async Task<int> Delete(int id, string creatorId)
+    public async Task<ResponseResult<bool>> Delete(int id, string creatorId)
     {
-        return await context.Notes
+        int affectedRows = await context.Notes
             .Where(x => x.CreatorId == creatorId && x.Id == id)
             .ExecuteDeleteAsync();
+            
+        if (affectedRows == 0)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound, 
+                $"Note with ID {id} not found or you don't have permission to delete it."
+            );
+        }
+        
+        return ResponseResult<bool>.Success(true);
     }
 
-
-    private static Dictionary<string, string> Cleanup(List<string> fields,
-        Dictionary<string, string> data)
+    private static Dictionary<string, string> Cleanup(List<string> fields, Dictionary<string, string> data)
     {
         return fields.ToDictionary(
             key => key,

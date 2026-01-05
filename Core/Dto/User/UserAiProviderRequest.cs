@@ -10,7 +10,7 @@ public class UserAiProviderRequest
 
     [Required]
     [StringLength(500, MinimumLength = 3)]
-    public string Key { get; set; }
+    public required string Key { get; set; }
 
     public static implicit operator UserAiProvider(UserAiProviderRequest request)
     {

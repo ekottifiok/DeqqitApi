@@ -19,81 +19,82 @@ public class NoteTypeService(DataContext context, IHtmlService htmlService, ICss
         return await PaginateAsync(query, request);
     }
 
-    public async Task<NoteType?> Get(string creatorId, int id)
+    public async Task<ResponseResult<NoteType>> Get(string creatorId, int id)
     {
-        return await context.NoteTypes.AsNoTracking().Include(x => x.Templates)
+        NoteType? noteType = await context.NoteTypes.AsNoTracking()
+            .Include(x => x.Templates)
             .FirstOrDefaultAsync(x => x.Id == id && (x.CreatorId == creatorId || x.CreatorId == null));
+            
+        if (noteType == null)
+        {
+            return ResponseResult<NoteType>.Failure(
+                ErrorCode.NotFound,
+                $"Note type with ID {id} not found or you don't have permission to access it."
+            );
+        }
+        
+        return ResponseResult<NoteType>.Success(noteType);
     }
-
-
-    // public async Task<int> Update(int id, string creatorId, UpdateNoteTypeRequest request)
-    // {
-    //     NoteTypeRequest cleanupRequest = await Cleanup(request);
-    //     // Note: Checking name existence might need to exclude the current 'id'
-    //
-    //     // 1. Fetch the parent to verify ownership
-    //     var noteType = await context.NoteTypes
-    //         .FirstOrDefaultAsync(x => x.Id == id && x.CreatorId == creatorId);
-    //
-    //     if (noteType == null) return 0;
-    //
-    //     // 2. Scalar updates on the parent
-    //     noteType.Name = request.Name;
-    //     noteType.CssStyle = request.CssStyle;
-    //
-    //     // 3. Prepare the templates for Synchronization
-    //     var templatesToSync = request.Templates.Select(t => new NoteTypeTemplate
-    //     {
-    //         Id = t.Id,
-    //         NoteTypeId = id, // Ensure FK is set
-    //         Front = t.Front,
-    //         Back = t.Back
-    //     }).ToList();
-    //
-    //     // 4. Use BulkSynchronize for the child collection
-    //     // This handles adding new, updating existing, AND deleting removed templates.
-    //     await context.BulkSynchronizeAsync(templatesToSync, options => {
-    //         options.ColumnPrimaryKeyExpression = t => t.Id;
-    //         options.SynchronizeKeepidentity = true; // Keep existing if needed
-    //     });
-    //
-    //     // 5. Save the scalar changes for the parent NoteType
-    //     return await context.SaveChangesAsync();
-    // }
-
-    public async Task<NoteType?> Create(string creatorId, CreateNoteTypeRequest request)
+    
+    public async Task<ResponseResult<NoteType>> Create(string creatorId, CreateNoteTypeRequest request)
     {
         NoteTypeRequest cleanupRequest = await Cleanup(request);
-        if (await DoesNoteNameExist(cleanupRequest.Name)) return null;
+        
+        if (await DoesNoteNameExist(cleanupRequest.Name, creatorId))
+        {
+            return ResponseResult<NoteType>.Failure(
+                ErrorCode.AlreadyExists,
+                $"A note type with the name '{cleanupRequest.Name}' already exists."
+            );
+        }
 
-        NoteType deck = new()
+        if (cleanupRequest.Templates.Count == 0)
+        {
+            return ResponseResult<NoteType>.Failure(
+                ErrorCode.InvalidState,
+                "Note type must have at least one template."
+            );
+        }
+
+        NoteType noteType = new()
         {
             CreatorId = creatorId,
             Name = cleanupRequest.Name,
             Templates = cleanupRequest.Templates.Select(x => (NoteTypeTemplate)x).ToList(),
             CssStyle = cleanupRequest.CssStyle
         };
-        await context.NoteTypes.AddAsync(deck);
+        
+        await context.NoteTypes.AddAsync(noteType);
         await context.SaveChangesAsync();
-        return deck;
+        
+        return ResponseResult<NoteType>.Success(noteType);
     }
 
-    public Task<int> Update(int id, string creatorId, UpdateNoteTypeRequest request)
+    public Task<ResponseResult<bool>> Update(int id, string creatorId, UpdateNoteTypeRequest request)
     {
         throw new NotImplementedException();
     }
 
-    public async Task<int> Delete(int id, string creatorId)
+    public async Task<ResponseResult<bool>> Delete(int id, string creatorId)
     {
-        return await context.NoteTypes
+        int affectedRows = await context.NoteTypes
             .Where(x => x.CreatorId == creatorId && x.Id == id)
             .ExecuteDeleteAsync();
+            
+        if (affectedRows == 0)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound,
+                $"Note type with ID {id} not found or you don't have permission to delete it."
+            );
+        }
+        
+        return ResponseResult<bool>.Success(true);
     }
 
-
-    private async Task<bool> DoesNoteNameExist(string name)
+    private async Task<bool> DoesNoteNameExist(string name, string creatorId)
     {
-        return await context.NoteTypes.AnyAsync(x => x.Name == name && x.CreatorId == null);
+        return await context.NoteTypes.AnyAsync(x => x.Name == name && x.CreatorId == creatorId);
     }
 
     private async Task<NoteTypeRequest> Cleanup(NoteTypeRequest request)

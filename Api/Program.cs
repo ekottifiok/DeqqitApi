@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Api.BackgroundService;
 using Api.Helpers;
 using Api.Middleware;
+using Api.Services;
 using Core.Data;
 using Core.Model;
 using Core.Services;
@@ -10,10 +11,12 @@ using Core.Services.Helper.Interface;
 using Core.Services.Interface;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-
+// ==================== Database Configuration ====================
 builder.Services.AddDbContext<DataContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -23,28 +26,45 @@ builder.Services.AddDbContext<DataContext>(options =>
     options.EnableDetailedErrors();
 });
 
+// ==================== OpenTelemetry Configuration ====================
+// builder.Services.AddOpenTelemetry()
+//     .ConfigureResource(resource => resource
+//         .AddService(serviceName: builder.Environment.ApplicationName))
+//     .WithMetrics(metrics => metrics
+//         .AddAspNetCoreInstrumentation()
+//         .AddConsoleExporter((exporterOptions, metricReaderOptions) =>
+//         {
+//             metricReaderOptions.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 1000;
+//         }));
 
+// ==================== Background Services ====================
 builder.Services.AddHostedService<DailyCleanupService>();
 
-// Add services to the container.
-builder.Services.AddScoped<IAuthManager, AuthManager>();
+// ==================== Core Services Registration ====================
+// Business Logic Services
 builder.Services.AddScoped<ICardService, CardService>();
 builder.Services.AddScoped<IDeckService, DeckService>();
 builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddScoped<INoteTypeService, NoteTypeService>();
-builder.Services.AddScoped<IUserBotCodeService, UserBotCodeService>();
-builder.Services.AddScoped<IUserBotService, UserBotService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+// Helper Services
+builder.Services.AddScoped<IAuthManager, AuthManager>();
+builder.Services.AddScoped<IUserBotCodeService, UserBotCodeService>();
+builder.Services.AddScoped<IUserBotService, UserBotService>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+// Template & Algorithm Services
 builder.Services.AddScoped<ICssService, CssService>();
 builder.Services.AddScoped<IFlashcardAlgorithmService, FlashcardAlgorithmService>();
 builder.Services.AddScoped<IHtmlService, HtmlService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
+
+// Auth & Time Services
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<ITimeService, TimeService>();
 
-
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+// ==================== Identity Configuration ====================
 builder.Services.AddIdentity<User, IdentityRole>(options =>
     {
         options.User.AllowedUserNameCharacters =
@@ -52,10 +72,11 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
     })
     .AddDefaultTokenProviders()
     .AddEntityFrameworkStores<DataContext>();
+
+// ==================== Authentication & Authorization ====================
 builder.AddCustomJwtMiddleware();
-builder.Services.AddRouting(options => options.LowercaseUrls = true);
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddProblemDetails();
+
+// ==================== MVC & API Configuration ====================
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -63,13 +84,27 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     });
+
+builder.Services.AddRouting(options => options.LowercaseUrls = true);
+
+// ==================== OpenAPI/Swagger Configuration ====================
+builder.Services.AddOpenApi();
 builder.Services.AddOpenApiConfiguration(builder.Environment);
+
+// ==================== Error Handling ====================
+builder.Services.AddProblemDetails();
+
+// ==================== Application Building ====================
 WebApplication app = builder.Build();
 
+// ==================== Middleware Pipeline ====================
+// Database Initialization
 app.Services.UseSeedDatabaseMiddleware();
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline
 app.UseOpenApiConfiguration();
+
+app.UseStatusCodePages();
 
 app.UseHttpsRedirection();
 

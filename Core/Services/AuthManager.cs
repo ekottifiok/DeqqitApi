@@ -14,6 +14,7 @@ public class AuthManager(
     UserManager<User> userManager,
     SignInManager<User> signInManager,
     DataContext context,
+    ITimeService timeService,
     ITokenService tokenService) : IAuthManager
 {
     public async Task<(User user, Dictionary<string, string[]>? errors)> Register(RegisterRequest request)
@@ -42,7 +43,7 @@ public class AuthManager(
         UserRefreshToken refreshToken = new()
         {
             UserId = user.Id,
-            Validity = DateTime.UtcNow.AddDays(TokenService.RefreshTokenValidityInDays),
+            Validity = timeService.UtcNow.AddDays(TokenService.RefreshTokenValidityInDays),
             Token = tokenService.GenerateRefreshToken()
         };
         await context.UserRefreshTokens.AddAsync(refreshToken);
@@ -59,7 +60,7 @@ public class AuthManager(
         User? user = await context.Users.Include(x => x.RefreshTokens)
             .FirstOrDefaultAsync(user1 => user1.Id == id);
         UserRefreshToken? userRefreshToken = user?.RefreshTokens.FirstOrDefault(tokens =>
-            tokens.Token == dto.RefreshToken && DateTime.Now <= tokens.Validity);
+            tokens.Token == dto.RefreshToken && timeService.UtcNow <= tokens.Validity);
         if (userRefreshToken == null) return null;
         context.UserRefreshTokens.Remove(userRefreshToken);
         await context.SaveChangesAsync();

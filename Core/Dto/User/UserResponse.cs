@@ -4,7 +4,7 @@ namespace Core.Dto.User;
 
 public class UserResponse
 {
-    public string UserId { get; set; }
+    public required string UserId { get; set; }
     public string? UserName { get; set; }
     public string? ProfileImageUrl { get; set; }
     public List<DateOnly> UserStreaks { get; set; } = [];

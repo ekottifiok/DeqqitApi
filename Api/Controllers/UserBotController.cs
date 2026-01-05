@@ -1,22 +1,21 @@
-using System.Security.Claims;
-using Core.Services;
+using Api.Services;
+using Core.Dto.Common;
+using Core.Services.Interface;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class UserBotController(IUserBotService userBotService) : ControllerBase
+public class UserBotController(IUserBotService userBotService,  ICurrentUserService currentUserService): BaseController
 {
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int deletedCount = await userBotService.Delete(userId, id);
-        if (deletedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await userBotService.Delete(userId, id);
+        return ProcessResult(result);
     }
 }

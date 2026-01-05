@@ -10,7 +10,7 @@ namespace Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(IAuthManager authManager) : ControllerBase
+public class AuthController(IAuthManager authManager): BaseController
 {
     [AllowAnonymous]
     [HttpPost("register")]

@@ -1,40 +1,54 @@
 using System.Security.Cryptography;
 using Core.Data;
+using Core.Dto.Common;
 using Core.Model;
 using Core.Model.Helper;
+using Core.Services.Helper.Interface;
+using Core.Services.Interface;
 using Microsoft.EntityFrameworkCore;
 
 namespace Core.Services;
 
-public class UserBotCodeService(DataContext context) : IUserBotCodeService
+public class UserBotCodeService(DataContext context, ITimeService timeService) : IUserBotCodeService
 {
-    public async Task<string> GenerateCode(string userId)
-    {
-        string code = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+    public async Task<ResponseResult<string>> GenerateCode(string userId)
+    {   string code = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
         UserBotCode userBotCode = new()
         {
             RandomCode = code,
             UserId = userId,
-            ExpirationDate = DateTime.UtcNow.AddMinutes(5)
+            ExpirationDate = timeService.UtcNow.AddMinutes(5)
         };
+        
         await context.UserBotCodes.AddAsync(userBotCode);
         await context.SaveChangesAsync();
-        return code;
+        
+        return ResponseResult<string>.Success(code);
     }
 
-
-    public async Task<bool> VerifyCode(string code, string botId, UserBotType botType)
+    public async Task<ResponseResult<bool>> VerifyCode(string code, string botId, UserBotType botType)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = timeService.UtcNow;
 
         UserBotCode? botCode = await context.UserBotCodes
             .Where(x => x.RandomCode == code && now <= x.ExpirationDate)
             .FirstOrDefaultAsync();
-        if (botCode is null) return false;
+            
+        if (botCode is null)
+        {
+            return ResponseResult<bool>.Failure(
+                ErrorCode.NotFound,
+                "Invalid or expired verification code."
+            );
+        }
 
-        bool doesProviderExist =
-            await context.UserBots.AnyAsync(x => x.BotId == botId && x.UserId == botCode.UserId);
-        if (doesProviderExist) return true;
+        bool doesProviderExist = await context.UserBots
+            .AnyAsync(x => x.BotId == botId && x.UserId == botCode.UserId);
+            
+        if (doesProviderExist)
+        {
+            return ResponseResult<bool>.Success(true);
+        }
 
         UserBot userBot = new()
         {
@@ -42,14 +56,10 @@ public class UserBotCodeService(DataContext context) : IUserBotCodeService
             UserId = botCode.UserId,
             Type = botType
         };
+        
         context.UserBots.Add(userBot);
         await context.SaveChangesAsync();
-        return true;
+        
+        return ResponseResult<bool>.Success(true);
     }
-}
-
-public interface IUserBotCodeService
-{
-    Task<string> GenerateCode(string userId);
-    Task<bool> VerifyCode(string code, string botId, UserBotType botType);
 }

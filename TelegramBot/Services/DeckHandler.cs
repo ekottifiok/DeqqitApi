@@ -1,6 +1,5 @@
 using Core.Dto.Deck;
 using Core.Dto.User;
-using Core.Services;
 using Core.Services.Interface;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -16,20 +15,22 @@ public class DeckHandler(
 {
     public async Task HandleDashboard(ITelegramBotClient bot, long chatId, string telegramUserId, CancellationToken ct)
     {
-        string? userId = await userBotService.Get(telegramUserId);
-        if (userId is null)
+        var userResult = await userBotService.Get(telegramUserId);
+        if (!userResult.IsSuccess || userResult.Value == null)
         {
             await MessageHelper.SendError(bot, chatId, "You are not authenticated. Please use /auth <token> first.",
                 ct);
             return;
         }
+        string userId = userResult.Value;
 
-        UserDashboardResponse? dashboard = await userService.GetUserDashboard(userId);
-        if (dashboard is null)
+        var result = await userService.GetUserDashboard(userId);
+        if (!result.IsSuccess || result.Value is null)
         {
             await MessageHelper.SendError(bot, chatId, "Failed to load dashboard data.", ct);
             return;
         }
+        var dashboard = result.Value;
 
         string reply = $"🔥 *Streak:* {dashboard.Streak} days\n" +
                        $"🧠 *Retention:* {dashboard.RetentionRate:P1}\n\n" +
@@ -47,19 +48,21 @@ public class DeckHandler(
 
     public async Task HandleListDecks(ITelegramBotClient bot, long chatId, string telegramUserId, CancellationToken ct)
     {
-        string? userId = await userBotService.Get(telegramUserId);
-        if (userId is null)
+        var userResult = await userBotService.Get(telegramUserId);
+        if (!userResult.IsSuccess || userResult.Value == null)
         {
             await MessageHelper.SendError(bot, chatId, "You are not authenticated.", ct);
             return;
         }
+        string userId = userResult.Value;
 
-        UserDashboardResponse? dashboard = await userService.GetUserDashboard(userId);
-        if (dashboard is null || !dashboard.Decks.Any())
+        var result = await userService.GetUserDashboard(userId);
+        if (!result.IsSuccess || result.Value is null || !result.Value.Decks.Any())
         {
             await MessageHelper.SendInfo(bot, chatId, "No decks found.", ct);
             return;
         }
+        var dashboard = result.Value;
 
         IEnumerable<(int Id, string Name)> decks = dashboard.Decks.Select(d => (d.Id, d.Name));
         await bot.SendMessage(chatId, "Select a deck to study:", replyMarkup: KeyboardHelper.DeckList(decks),
@@ -69,15 +72,17 @@ public class DeckHandler(
     public async Task HandleDeckSelection(ITelegramBotClient bot, CallbackQuery query, string telegramUserId,
         int deckId, CancellationToken ct)
     {
-        string? userId = await userBotService.Get(telegramUserId);
-        if (userId is null) return;
+        var userResult = await userBotService.Get(telegramUserId);
+        if (!userResult.IsSuccess || userResult.Value == null) return;
+        string userId = userResult.Value;
 
-        DeckSummaryResponse? summary = await deckService.GetSummary(userId, deckId);
-        if (summary is null)
+        var result = await deckService.GetSummary(userId, deckId);
+        if (!result.IsSuccess || result.Value is null)
         {
             await MessageHelper.SendError(bot, query.Message!.Chat.Id, "Deck not found.", ct);
             return;
         }
+        var summary = result.Value;
 
         string text = $"📚 *{summary.Name}*\n{summary.Description}\n\n" +
                       $"🔵 New: {summary.DeckDueCount.New}\n" +

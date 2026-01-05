@@ -1,4 +1,5 @@
-using System.Security.Claims;
+using Api.Services;
+using Core.Dto.Common;
 using Core.Dto.Note;
 using Core.Model;
 using Core.Services.Interface;
@@ -10,69 +11,58 @@ namespace Api.Controllers;
 [Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class NoteController(INoteService noteService) : ControllerBase
+public class NoteController(INoteService noteService, ICurrentUserService currentUserService): BaseController
 {
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<Note>> Get(int id)
+    public async Task<IActionResult> Get(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        Note? notes = await noteService.Get(userId, id);
-        if (notes == null) return NotFound();
-
-        return Ok(notes);
+        ResponseResult<Note> result = await noteService.Get(userId, id);
+        return ProcessResult(result);
     }
 
     [HttpGet("generate")]
-    public async Task<ActionResult<List<Dictionary<string, string>>>> Generate(
-        [FromQuery] GenerateAiFlashcardRequest request)
+    public async Task<IActionResult> Generate([FromQuery] GenerateAiFlashcardRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        List<Dictionary<string, string>>? notes =
+        ResponseResult<List<Dictionary<string, string>>> result =
             await noteService.GenerateFlashcards(userId, request.ProviderId, request.NoteTypeId, request.Description);
-        if (notes == null) return NotFound();
-
-        return Ok(notes);
+        return ProcessResult(result);
     }
 
     // TODO: Create more validation
     [HttpPost]
-    public async Task<ActionResult> Create([FromBody] List<CreateNoteRequest> request,
+    public async Task<IActionResult> Create([FromBody] List<CreateNoteRequest> request,
         [FromQuery] CreateNoteQueryRequest queryRequest)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        bool isSuccessful = await noteService.Create(userId, queryRequest.DeckId, queryRequest.NoteTypeId, request);
-        if (!isSuccessful) return BadRequest();
-
-        return NoContent();
+        ResponseResult<bool> result = await noteService.Create(userId, queryRequest.DeckId, queryRequest.NoteTypeId, request);
+        return ProcessResult(result);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult> Update(int id, UpdateNoteRequest request)
+    public async Task<IActionResult> Update(int id, UpdateNoteRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int updatedCount = await noteService.Update(userId, id, request);
-        if (updatedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await noteService.Update(userId, id, request);
+        return ProcessResult(result);
     }
 
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int deletedCount = await noteService.Delete(id, userId);
-        if (deletedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await noteService.Delete(id, userId);
+        return ProcessResult(result);
     }
 }

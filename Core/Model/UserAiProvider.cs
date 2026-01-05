@@ -8,5 +8,5 @@ public class UserAiProvider
 {
     public int Id { get; set; }
     public UserAiProviderType Type { get; set; }
-    public string Key { get; set; }
+    public required string Key { get; set; }
 }

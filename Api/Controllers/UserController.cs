@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Api.Helpers;
+using Api.Services;
+using Core.Dto.Common;
 using Core.Dto.User;
 using Core.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -10,12 +12,12 @@ namespace Api.Controllers;
 [Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class UserController(IUserService userService) : ControllerBase
+public class UserController(IUserService userService, ICurrentUserService currentUserService): BaseController
 {
     [HttpPut("profile-image")]
     public async Task<IActionResult> SetProfileImage(IFormFile file)
     {
-        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
         // Validation for file upload
@@ -24,10 +26,14 @@ public class UserController(IUserService userService) : ControllerBase
 
         if (!success || filePath == null) return BadRequest(message);
 
-        int updatedCount = await userService.UpdateProfileImage(userId, filePath);
-        if (updatedCount == 0) return NotFound();
-
-        return Ok(new { Path = filePath });
+        ResponseResult<bool> result = await userService.UpdateProfileImage(userId, filePath);
+        
+        // Custom wrap since we want to return the path if successful
+        if (result.IsSuccess)
+        {
+             return Ok(new { Path = filePath });
+        }
+        return ProcessResult(result);
     }
 
     [HttpPut]
@@ -36,33 +42,27 @@ public class UserController(IUserService userService) : ControllerBase
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int updatedCount = await userService.Update(userId, request);
-        if (updatedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await userService.Update(userId, request);
+        return ProcessResult(result);
     }
 
     [HttpGet]
-    public async Task<ActionResult<UserResponse>> Get()
+    public async Task<IActionResult> Get()
     {
-        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        UserResponse? user = await userService.Get(userId);
-        if (user is null) return Forbid();
-
-        return Ok(user);
+        ResponseResult<UserResponse> result = await userService.Get(userId);
+        return ProcessResult(result);
     }
 
     [HttpGet("dashboard")]
-    public async Task<ActionResult<UserDashboardResponse>> GetDashboard()
+    public async Task<IActionResult> GetDashboard()
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        UserDashboardResponse? userDashboard = await userService.GetUserDashboard(userId);
-        if (userDashboard == null) return Forbid();
-
-        return Ok(userDashboard);
+        ResponseResult<UserDashboardResponse> result = await userService.GetUserDashboard(userId);
+        return ProcessResult(result);
     }
 }

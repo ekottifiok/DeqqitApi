@@ -4,7 +4,7 @@ using Core.Services.Helper.Interface;
 
 namespace Core.Services.Helper;
 
-public class AiServiceFactory
+public static class AiServiceFactory
 {
     public static IAiService GetUserService(UserAiProvider provider)
     {

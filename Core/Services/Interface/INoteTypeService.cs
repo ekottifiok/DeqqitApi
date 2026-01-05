@@ -8,11 +8,11 @@ public interface INoteTypeService
 {
     Task<PaginationResult<NoteType>> Get(string creatorId, PaginationRequest<int> request);
 
-    Task<NoteType?> Get(string creatorId, int id);
+    Task<ResponseResult<NoteType>> Get(string creatorId, int id);
 
-    Task<NoteType?> Create(string creatorId, CreateNoteTypeRequest request);
+    Task<ResponseResult<NoteType>> Create(string creatorId, CreateNoteTypeRequest request);
 
-    Task<int> Update(int id, string creatorId, UpdateNoteTypeRequest request);
+    Task<ResponseResult<bool>> Update(int id, string creatorId, UpdateNoteTypeRequest request);
 
-    Task<int> Delete(int id, string creatorId);
+    Task<ResponseResult<bool>> Delete(int id, string creatorId);
 }

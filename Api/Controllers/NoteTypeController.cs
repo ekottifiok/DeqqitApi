@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using Api.Services;
 using Core.Dto.Common;
 using Core.Dto.NoteType;
 using Core.Model;
@@ -11,65 +11,56 @@ namespace Api.Controllers;
 [Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class NoteTypeController(INoteTypeService noteTypeService) : ControllerBase
+public class NoteTypeController(INoteTypeService noteTypeService, ICurrentUserService currentUserService): BaseController
 {
     [HttpGet]
-    public async Task<ActionResult<PaginationResult<NoteType>>> Get([FromQuery] PaginationRequest<int> request)
+    public async Task<IActionResult> Get([FromQuery] PaginationRequest<int> request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
         PaginationResult<NoteType> noteTypes = await noteTypeService.Get(userId, request);
-
         return Ok(noteTypes);
     }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<NoteType>> Get(int id)
+    public async Task<IActionResult> Get(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        NoteType? noteType = await noteTypeService.Get(userId, id);
-        if (noteType == null) return NotFound();
-
-        return Ok(noteType);
+        ResponseResult<NoteType> result = await noteTypeService.Get(userId, id);
+        return ProcessResult(result);
     }
 
     // TODO: Create more validation
     [HttpPost]
-    public async Task<ActionResult> Create(CreateNoteTypeRequest request)
+    public async Task<IActionResult> Create(CreateNoteTypeRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        NoteType? noteType = await noteTypeService.Create(userId, request);
-        if (noteType == null) return BadRequest();
-
-        return CreatedAtAction(nameof(Get), new { id = noteType.Id }, noteType);
+        ResponseResult<NoteType> result = await noteTypeService.Create(userId, request);
+        return ProcessResult(result);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult> Update(int id, UpdateNoteTypeRequest request)
+    public async Task<IActionResult> Update(int id, UpdateNoteTypeRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int updatedCount = await noteTypeService.Update(id, userId, request);
-        if (updatedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await noteTypeService.Update(id, userId, request);
+        return ProcessResult(result);
     }
 
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int deletedCount = await noteTypeService.Delete(id, userId);
-        if (deletedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await noteTypeService.Delete(id, userId);
+        return ProcessResult(result);
     }
 }

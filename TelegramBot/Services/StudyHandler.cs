@@ -1,5 +1,4 @@
 using Core.Dto.Card;
-using Core.Services;
 using Core.Services.Interface;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -13,11 +12,12 @@ public class StudyHandler(ICardService cardService, IUserService userService, IU
     public async Task StartStudy(ITelegramBotClient bot, CallbackQuery query, string telegramUserId, int deckId,
         CancellationToken ct)
     {
-        string? userId = await userBotService.Get(telegramUserId);
-        if (userId is null) return;
+        var userResult = await userBotService.Get(telegramUserId);
+        if (!userResult.IsSuccess || userResult.Value == null) return;
+        string userId = userResult.Value;
 
-        CardResponse? card = await cardService.GetNextStudyCard(userId, deckId);
-        if (card is null)
+        var result = await cardService.GetNextStudyCard(userId, deckId);
+        if (!result.IsSuccess || result.Value is null)
         {
             await bot.EditMessageText(
                 query.Message!.Chat.Id,
@@ -28,7 +28,7 @@ public class StudyHandler(ICardService cardService, IUserService userService, IU
             return;
         }
 
-        await SendCardFront(bot, query.Message!.Chat.Id, query.Message.MessageId, card, deckId, ct);
+        await SendCardFront(bot, query.Message!.Chat.Id, query.Message.MessageId, result.Value, deckId, ct);
     }
 
     private async Task SendCardFront(ITelegramBotClient bot, long chatId, int messageId, CardResponse card, int deckId,
@@ -54,11 +54,12 @@ public class StudyHandler(ICardService cardService, IUserService userService, IU
     public async Task SubmitAnswer(ITelegramBotClient bot, Message message, string answer, int cardId, int deckId,
         CancellationToken ct)
     {
-        string? userId = await userBotService.Get(message.From!.Id.ToString());
-        if (userId is null) return;
+        var userResult = await userBotService.Get(message.From!.Id.ToString());
+        if (!userResult.IsSuccess || userResult.Value == null) return;
+        string userId = userResult.Value;
 
-        int? providerId = await userService.GetDefaultProviderId(userId);
-        if (providerId == null)
+        var providerResult = await userService.GetDefaultProviderId(userId);
+        if (!providerResult.IsSuccess || providerResult.Value == null)
         {
             await bot.SendMessage(message.Chat.Id, "❌ No AI Provider found. Please configure one in the app.",
                 cancellationToken: ct);
@@ -68,29 +69,31 @@ public class StudyHandler(ICardService cardService, IUserService userService, IU
         CardSubmitRequest request = new()
         {
             Answer = answer,
-            UserProviderId = providerId.Value
+            UserProviderId = providerResult.Value.Value
         };
 
-        CardResponse? response = await cardService.SubmitCardReview(userId, cardId, request);
+        var result = await cardService.SubmitCardReview(userId, cardId, request);
 
-        if (response == null)
+        if (result.IsSuccess && result.Value != null)
+        {
+            var response = result.Value;
+            string feedback =
+                $"✅ *Review Submitted*\n\n📝 *Front*: {response.Front}\n📖 *Back*: {response.Back}\n\n_Next card loading..._";
+            await bot.SendMessage(message.Chat.Id, feedback, ParseMode.Markdown, cancellationToken: ct);
+
+            // Start next card
+            var nextResult = await cardService.GetNextStudyCard(userId, deckId);
+            if (nextResult.IsSuccess && nextResult.Value != null)
+                // We pass a dummy message ID since we are sending a new message anyway
+                await SendCardFront(bot, message.Chat.Id, message.MessageId, nextResult.Value, deckId, ct);
+            else
+                await bot.SendMessage(message.Chat.Id, "🎉 *All caught up!*", ParseMode.Markdown,
+                    cancellationToken: ct);
+        }
+        else
         {
             await bot.SendMessage(message.Chat.Id, "❌ Error submitting review. Please try again.",
                 cancellationToken: ct);
-            return;
         }
-
-        string feedback =
-            $"✅ *Review Submitted*\n\n📝 *Front*: {response.Front}\n📖 *Back*: {response.Back}\n\n_Next card loading..._";
-        await bot.SendMessage(message.Chat.Id, feedback, ParseMode.Markdown, cancellationToken: ct);
-
-        // Start next card
-        CardResponse? nextCard = await cardService.GetNextStudyCard(userId, deckId);
-        if (nextCard != null)
-            // We pass a dummy message ID since we are sending a new message anyway
-            await SendCardFront(bot, message.Chat.Id, message.MessageId, nextCard, deckId, ct);
-        else
-            await bot.SendMessage(message.Chat.Id, "🎉 *All caught up!*", ParseMode.Markdown,
-                cancellationToken: ct);
     }
 }

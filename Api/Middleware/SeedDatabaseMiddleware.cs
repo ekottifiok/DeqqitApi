@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Bogus;
 using Core.Data;
 using Core.Model;
@@ -15,7 +14,7 @@ public static class SeedDatabaseMiddleware
         using IServiceScope scope = services.CreateScope();
         DataContext context = scope.ServiceProvider.GetRequiredService<DataContext>();
         UserManager<User> userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-        context.Database.EnsureDeleted();
+        // context.Database.EnsureDeleted();
         context.Database.EnsureCreated();
         if (context.Users.Count() > 3) return;
 

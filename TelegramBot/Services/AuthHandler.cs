@@ -1,5 +1,5 @@
 using Core.Model.Helper;
-using Core.Services;
+using Core.Services.Interface;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using TelegramBot.Helpers;
@@ -20,8 +20,8 @@ public class AuthHandler(IUserBotCodeService userBotCodeService)
             return;
         }
 
-        bool isSuccess = await userBotCodeService.VerifyCode(token, sender.Id.ToString(), UserBotType.Telegram);
-        if (!isSuccess)
+        var result = await userBotCodeService.VerifyCode(token, sender.Id.ToString(), UserBotType.Telegram);
+        if (!result.IsSuccess || !result.Value)
         {
             await MessageHelper.SendError(bot, message.Chat.Id, "Invalid Code. Please retry", ct);
             return;

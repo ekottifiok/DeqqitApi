@@ -13,6 +13,18 @@ public class HomeController : ControllerBase
         return new GetMessage("Welcome to Zorbtion Flashcard API");
     }
 
+    [HttpGet("error")]
+    public IActionResult GetError()
+    {
+        throw new Exception("What an Error Message");
+    }
+
+    [HttpGet("/error/empty")]
+    public IActionResult GetErrorEmpty()
+    {
+        throw new Exception();
+    }
+
     [HttpGet("/enums")]
     public AllEnumsResponse GetAllEnums()
     {

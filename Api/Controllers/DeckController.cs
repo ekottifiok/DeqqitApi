@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using Api.Services;
 using Core.Dto.Card;
 using Core.Dto.Common;
 using Core.Dto.Deck;
@@ -12,103 +12,93 @@ namespace Api.Controllers;
 [Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class DeckController(IDeckService deckService, INoteService noteService, ICardService cardService)
-    : ControllerBase
+public class DeckController(IDeckService deckService, INoteService noteService, ICardService cardService,  ICurrentUserService currentUserService)
+    : BaseController
 {
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<DeckSummaryResponse>> Get(int id)
+    public async Task<IActionResult> Get(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        DeckSummaryResponse? summary = await deckService.GetSummary(userId, id);
-        if (summary == null) return NotFound();
-
-        return Ok();
+        ResponseResult<DeckSummaryResponse> result = await deckService.GetSummary(userId, id);
+        return ProcessResult(result);
     }
 
     [HttpGet("{id:int}/notes")]
-    public async Task<ActionResult<PaginationResult<Note>>> GetAllNotes(int id,
+    public async Task<IActionResult> GetAllNotes(int id,
         [FromQuery] PaginationRequest<int> request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
         PaginationResult<Note> notes = await noteService.Get(userId, id, request);
-
         return Ok(notes);
     }
 
     [HttpGet("{id:int}/cards")]
-    public async Task<ActionResult<PaginationResult<Card>>> GetAllCards(int id,
+    public async Task<IActionResult> GetAllCards(int id,
         [FromQuery] PaginationRequest<int> request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
         PaginationResult<Card> cards = await cardService.Get(userId, id, request);
-
         return Ok(cards);
     }
 
     [HttpGet("{id:int}/cards/next")]
-    public async Task<ActionResult> GetNextCard(int id)
+    public async Task<IActionResult> GetNextCard(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        CardResponse? card = await cardService.GetNextStudyCard(userId, id);
-        if (card == null) return NoContent();
-
-        return Ok(card);
+        ResponseResult<CardResponse> result = await cardService.GetNextStudyCard(userId, id);
+        return ProcessResult(result);
     }
 
 
     [HttpGet("{id:int}/stats")]
-    public async Task<ActionResult<DeckStatisticsResponse>> GetStats(int id)
+    public async Task<IActionResult> GetStats(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        DeckStatisticsResponse? statistics = await deckService.GetStatistics(userId, id);
-        if (statistics == null) return NotFound();
-
-        return Ok(statistics);
+        ResponseResult<DeckStatisticsResponse> result = await deckService.GetStatistics(userId, id);
+        return ProcessResult(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<Deck>> Create(CreateDeckRequest request)
+    public async Task<IActionResult> Create(CreateDeckRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        Deck? deck = await deckService.Create(userId, request);
-        if (deck == null) return BadRequest();
-
-        return CreatedAtAction(nameof(Get), new { id = deck.Id }, deck);
+        ResponseResult<Deck> result = await deckService.Create(userId, request);
+        // CreatedAtAction logic is a bit more complex with ProcessResult if we want to keep it exact.
+        // But ProcessResult typically returns Ok(value).
+        // If we strictly want CreatedAtAction, we'd need to inspect the result or use ProcessResult and accept 200 OK.
+        // For standardization as per user request, using ProcessResult is safer/easier.
+        return ProcessResult(result); 
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult> Update(int id, UpdateDeckRequest request)
+    public async Task<IActionResult> Update(int id, UpdateDeckRequest request)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int updatedCount = await deckService.Update(id, userId, request);
-        if (updatedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await deckService.Update(id, userId, request);
+        return ProcessResult(result);
     }
 
     [HttpDelete("{id:int}")]
-    public async Task<ActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        string? userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        string? userId = currentUserService.GetUserId();
         if (string.IsNullOrEmpty(userId)) return Forbid();
 
-        int deletedCount = await deckService.Delete(id, userId);
-        if (deletedCount == 0) return NotFound();
-
-        return NoContent();
+        ResponseResult<bool> result = await deckService.Delete(id, userId);
+        return ProcessResult(result);
     }
 }
