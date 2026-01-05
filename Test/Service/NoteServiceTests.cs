@@ -57,7 +57,7 @@ public class NoteServiceTests(NoteServiceFixture fixture) : IntegrationTestBase<
         Assert.True(result.IsSuccess, result.Error?.Message);
         
         Context.ChangeTracker.Clear();
-        var note = await Context.Notes.Include(n => n.Cards).FirstOrDefaultAsync(n => n.DeckId == Fixture.TestDeckId);
+        Note? note = await Context.Notes.Include(n => n.Cards).FirstOrDefaultAsync(n => n.DeckId == Fixture.TestDeckId);
         Assert.NotNull(note);
         Assert.Equal("Q", note.Data["Front"]);
         Assert.NotEmpty(note.Cards); // Cards should be generated
@@ -67,7 +67,7 @@ public class NoteServiceTests(NoteServiceFixture fixture) : IntegrationTestBase<
     public async Task Get_ValidPagination_ReturnsNotes()
     {
         // Seed a note first
-        var note = new Note { CreatorId = Fixture.TestCreatorId, DeckId = Fixture.TestDeckId, NoteTypeId = Fixture.TestNoteTypeId, Data = new(), Tags = [] };
+        Note note = new Note { CreatorId = Fixture.TestCreatorId, DeckId = Fixture.TestDeckId, NoteTypeId = Fixture.TestNoteTypeId, Data = new(), Tags = [] };
         Context.Notes.Add(note);
         await Context.SaveChangesAsync();
 
@@ -83,8 +83,8 @@ public class NoteServiceTests(NoteServiceFixture fixture) : IntegrationTestBase<
     public async Task GenerateFlashcards_ValidDescription_ReturnsFlashcards()
     {
         // Arrange
-        var user = await Context.Users.FindAsync(Fixture.TestCreatorId);
-        var provider = new UserAiProvider { Key = "key", Type = UserAiProviderType.ChatGpt };
+        User? user = await Context.Users.FindAsync(Fixture.TestCreatorId);
+        UserAiProvider provider = new UserAiProvider { Key = "key", Type = UserAiProviderType.ChatGpt };
         user.AiProviders.Add(provider);
         await Context.SaveChangesAsync();
 
@@ -96,7 +96,7 @@ public class NoteServiceTests(NoteServiceFixture fixture) : IntegrationTestBase<
 
         // Act
         // Use generated provider ID
-        var result = await _noteService.GenerateFlashcards(Fixture.TestCreatorId, provider.Id, Fixture.TestNoteTypeId, "Desc");
+        ResponseResult<List<Dictionary<string, string>>> result = await _noteService.GenerateFlashcards(Fixture.TestCreatorId, provider.Id, Fixture.TestNoteTypeId, "Desc");
 
         // Assert
         Assert.True(result.IsSuccess);

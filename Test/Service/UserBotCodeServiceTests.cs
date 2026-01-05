@@ -30,14 +30,14 @@ public class UserBotCodeServiceTests(UserBotServiceFixture fixture) : Integratio
     [Fact]
     public async Task GenerateCode_ValidUser_ReturnsCode()
     {
-        var result = await _codeService.GenerateCode(Fixture.TestCreatorId);
+        ResponseResult<string> result = await _codeService.GenerateCode(Fixture.TestCreatorId);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal(6, result.Value.Length);
         
         // Verify expiration
-        var stored = await Context.UserBotCodes.FirstOrDefaultAsync(x => x.RandomCode == result.Value);
+        UserBotCode? stored = await Context.UserBotCodes.FirstOrDefaultAsync(x => x.RandomCode == result.Value);
         Assert.NotNull(stored);
         Assert.Equal(Fixture.TestCreatorId, stored.UserId);
     }
@@ -55,12 +55,12 @@ public class UserBotCodeServiceTests(UserBotServiceFixture fixture) : Integratio
         });
         await Context.SaveChangesAsync();
 
-        var result = await _codeService.VerifyCode(code, "bot-verified", UserBotType.Telegram);
+        ResponseResult<bool> result = await _codeService.VerifyCode(code, "bot-verified", UserBotType.Telegram);
 
         Assert.True(result.IsSuccess);
         
         Context.ChangeTracker.Clear();
-        var bot = await Context.UserBots.FirstOrDefaultAsync(x => x.BotId == "bot-verified");
+        UserBot? bot = await Context.UserBots.FirstOrDefaultAsync(x => x.BotId == "bot-verified");
         Assert.NotNull(bot);
         Assert.Equal(Fixture.TestCreatorId, bot.UserId);
         Assert.Equal(UserBotType.Telegram, bot.Type);
@@ -79,7 +79,7 @@ public class UserBotCodeServiceTests(UserBotServiceFixture fixture) : Integratio
         });
         await Context.SaveChangesAsync();
 
-        var result = await _codeService.VerifyCode(code, "bot-fail", UserBotType.Telegram);
+        ResponseResult<bool> result = await _codeService.VerifyCode(code, "bot-fail", UserBotType.Telegram);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCode.NotFound, result.Error?.Code);

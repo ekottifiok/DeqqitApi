@@ -5,7 +5,7 @@ namespace Core.Dto.Note;
 
 public class NoteRequest
 {
-    public Dictionary<string, string> Data { get; set; }
+    [Required] public required Dictionary<string, string> Data { get; set; }
 
-    [AlphabetsOnly] [MaxLength(20)] public List<string> Tags { get; set; }
+    [AlphabetsOnly] [MaxLength(20)] public List<string> Tags { get; set; } = [];
 }

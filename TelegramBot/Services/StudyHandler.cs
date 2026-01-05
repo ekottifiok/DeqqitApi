@@ -1,4 +1,5 @@
 using Core.Dto.Card;
+using Core.Dto.Common;
 using Core.Services.Interface;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -12,11 +13,11 @@ public class StudyHandler(ICardService cardService, IUserService userService, IU
     public async Task StartStudy(ITelegramBotClient bot, CallbackQuery query, string telegramUserId, int deckId,
         CancellationToken ct)
     {
-        var userResult = await userBotService.Get(telegramUserId);
+        ResponseResult<string> userResult = await userBotService.Get(telegramUserId);
         if (!userResult.IsSuccess || userResult.Value == null) return;
         string userId = userResult.Value;
 
-        var result = await cardService.GetNextStudyCard(userId, deckId);
+        ResponseResult<CardResponse> result = await cardService.GetNextStudyCard(userId, deckId);
         if (!result.IsSuccess || result.Value is null)
         {
             await bot.EditMessageText(
@@ -54,11 +55,11 @@ public class StudyHandler(ICardService cardService, IUserService userService, IU
     public async Task SubmitAnswer(ITelegramBotClient bot, Message message, string answer, int cardId, int deckId,
         CancellationToken ct)
     {
-        var userResult = await userBotService.Get(message.From!.Id.ToString());
+        ResponseResult<string> userResult = await userBotService.Get(message.From!.Id.ToString());
         if (!userResult.IsSuccess || userResult.Value == null) return;
         string userId = userResult.Value;
 
-        var providerResult = await userService.GetDefaultProviderId(userId);
+        ResponseResult<int?> providerResult = await userService.GetDefaultProviderId(userId);
         if (!providerResult.IsSuccess || providerResult.Value == null)
         {
             await bot.SendMessage(message.Chat.Id, "❌ No AI Provider found. Please configure one in the app.",
@@ -72,17 +73,17 @@ public class StudyHandler(ICardService cardService, IUserService userService, IU
             UserProviderId = providerResult.Value.Value
         };
 
-        var result = await cardService.SubmitCardReview(userId, cardId, request);
+        ResponseResult<CardResponse> result = await cardService.SubmitCardReview(userId, cardId, request);
 
         if (result.IsSuccess && result.Value != null)
         {
-            var response = result.Value;
+            CardResponse? response = result.Value;
             string feedback =
                 $"✅ *Review Submitted*\n\n📝 *Front*: {response.Front}\n📖 *Back*: {response.Back}\n\n_Next card loading..._";
             await bot.SendMessage(message.Chat.Id, feedback, ParseMode.Markdown, cancellationToken: ct);
 
             // Start next card
-            var nextResult = await cardService.GetNextStudyCard(userId, deckId);
+            ResponseResult<CardResponse> nextResult = await cardService.GetNextStudyCard(userId, deckId);
             if (nextResult.IsSuccess && nextResult.Value != null)
                 // We pass a dummy message ID since we are sending a new message anyway
                 await SendCardFront(bot, message.Chat.Id, message.MessageId, nextResult.Value, deckId, ct);

@@ -11,7 +11,7 @@ public class NoteTypeServiceFixture : DatabaseFixture
 
     protected override async Task SeedAsync(DataContext context)
     {
-        var user = new UserFaker("NoteTypeTester")
+        User? user = new UserFaker("NoteTypeTester")
             .RuleFor(u => u.Id, _ => TestCreatorId)
             .Generate();
         context.Users.Add(user);

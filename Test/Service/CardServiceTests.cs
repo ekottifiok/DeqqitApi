@@ -56,7 +56,7 @@ public class CardServiceTests(CardServiceFixture fixture) : IntegrationTestBase<
     [Fact]
     public async Task Get_ValidId_ReturnsCard()
     {
-        var card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId);
+        Card card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId);
         ResponseResult<Card> result = await _cardService.Get(Fixture.TestCreatorId, card.Id);
 
         Assert.True(result.IsSuccess);
@@ -66,20 +66,20 @@ public class CardServiceTests(CardServiceFixture fixture) : IntegrationTestBase<
     [Fact]
     public async Task UpdateCardState_Suspend_SuspendsCard()
     {
-        var card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId && c.State != CardState.Suspended);
+        Card card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId && c.State != CardState.Suspended);
         ResponseResult<bool> result = await _cardService.UpdateCardState(Fixture.TestCreatorId, card.Id, UpdateCardStateRequest.Suspend);
 
         Assert.True(result.IsSuccess);
         
         Context.ChangeTracker.Clear();
-        var dbCard = await Context.Cards.FindAsync(card.Id);
+        Card? dbCard = await Context.Cards.FindAsync(card.Id);
         Assert.Equal(CardState.Suspended, dbCard.State);
     }
 
     [Fact]
     public async Task UpdateCardState_Reset_ResetsCard()
     {
-        var card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId);
+        Card card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId);
         // Ensure it's not new to verify change
         card.State = CardState.Learning;
         await Context.SaveChangesAsync();
@@ -89,7 +89,7 @@ public class CardServiceTests(CardServiceFixture fixture) : IntegrationTestBase<
         Assert.True(result.IsSuccess);
         
         Context.ChangeTracker.Clear();
-        var dbCard = await Context.Cards.FindAsync(card.Id);
+        Card? dbCard = await Context.Cards.FindAsync(card.Id);
         Assert.Equal(CardState.New, dbCard.State);
         Assert.Equal(0, dbCard.Repetitions);
     }
@@ -98,7 +98,7 @@ public class CardServiceTests(CardServiceFixture fixture) : IntegrationTestBase<
     public async Task GetNextStudyCard_PrioritizesLearning()
     {
         // Ensure we have a Learning card due now
-        var learningCard = await Context.Cards.FirstAsync(c => c.State == CardState.Learning);
+        Card learningCard = await Context.Cards.FirstAsync(c => c.State == CardState.Learning);
         learningCard.DueDate = _mockTime.Object.UtcNow.AddMinutes(-1);
         await Context.SaveChangesAsync();
 
@@ -113,12 +113,12 @@ public class CardServiceTests(CardServiceFixture fixture) : IntegrationTestBase<
     public async Task SubmitCardReview_ValidRequest_UpdatesCard()
     {
         // 1. Arrange
-        var user = await Context.Users.FindAsync(Fixture.TestCreatorId);
-        var provider = new UserAiProvider { Key = "key", Type = UserAiProviderType.ChatGpt };
+        User? user = await Context.Users.FindAsync(Fixture.TestCreatorId);
+        UserAiProvider provider = new UserAiProvider { Key = "key", Type = UserAiProviderType.ChatGpt };
         user.AiProviders.Add(provider);
         await Context.SaveChangesAsync();
 
-        var card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId && c.State == CardState.New);
+        Card card = await Context.Cards.FirstAsync(c => c.Note.CreatorId == Fixture.TestCreatorId && c.State == CardState.New);
         
         _mockAiService.Setup(x => x.CheckAnswer(It.IsAny<string>(), "Answer", It.IsAny<string>()))
             .ReturnsAsync(5); // 5 = Perfect
@@ -137,7 +137,7 @@ public class CardServiceTests(CardServiceFixture fixture) : IntegrationTestBase<
         // CardService maps AFTER saving, so it should be new state.
         
         Context.ChangeTracker.Clear();
-        var dbCard = await Context.Cards.FindAsync(card.Id);
+        Card? dbCard = await Context.Cards.FindAsync(card.Id);
         Assert.Equal(CardState.Review, dbCard.State);
         Assert.Equal(1, dbCard.Repetitions);
     }

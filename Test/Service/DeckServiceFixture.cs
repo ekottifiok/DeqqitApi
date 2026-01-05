@@ -14,14 +14,14 @@ public class DeckServiceFixture : DatabaseFixture
     protected override async Task SeedAsync(DataContext context)
     {
         // 1. Create Test User
-        var user = new UserFaker("DeckTester")
+        User? user = new UserFaker("DeckTester")
             .RuleFor(u => u.Id, _ => TestCreatorId)
             .RuleFor(u => u.Email, _ => "deck@test.com")
             .RuleFor(u => u.DeckOption, _ => new DeckOption { NewLimitPerDay = 10, ReviewLimitPerDay = 50 })
             .Generate();
 
         // 2. Create Other User (for permission testing)
-        var otherUser = new UserFaker("OtherTester")
+        User? otherUser = new UserFaker("OtherTester")
             .RuleFor(u => u.Id, _ => OtherCreatorId)
             .RuleFor(u => u.Email, _ => "other@test.com")
             .RuleFor(u => u.DeckOption, _ => new DeckOption { NewLimitPerDay = 10, ReviewLimitPerDay = 50 })

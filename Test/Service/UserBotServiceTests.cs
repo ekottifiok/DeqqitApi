@@ -1,4 +1,5 @@
 using Core.Data;
+using Core.Dto.Common;
 using Core.Model;
 using Core.Model.Helper;
 using Core.Services;
@@ -22,11 +23,11 @@ public class UserBotServiceTests(UserBotServiceFixture fixture) : IntegrationTes
     public async Task Get_ValidBotId_ReturnsUserId()
     {
         // Seed
-        var bot = new UserBot { BotId = "telegram-123", UserId = Fixture.TestCreatorId, Type = UserBotType.Telegram };
+        UserBot bot = new UserBot { BotId = "telegram-123", UserId = Fixture.TestCreatorId, Type = UserBotType.Telegram };
         Context.UserBots.Add(bot);
         await Context.SaveChangesAsync();
 
-        var result = await _userBotService.Get("telegram-123");
+        ResponseResult<string> result = await _userBotService.Get("telegram-123");
 
         Assert.True(result.IsSuccess);
         Assert.Equal(Fixture.TestCreatorId, result.Value);
@@ -35,11 +36,11 @@ public class UserBotServiceTests(UserBotServiceFixture fixture) : IntegrationTes
     [Fact]
     public async Task Delete_ValidId_DeletesUserBot()
     {
-        var bot = new UserBot { BotId = "telegram-delete", UserId = Fixture.TestCreatorId, Type = UserBotType.Telegram };
+        UserBot bot = new UserBot { BotId = "telegram-delete", UserId = Fixture.TestCreatorId, Type = UserBotType.Telegram };
         Context.UserBots.Add(bot);
         await Context.SaveChangesAsync();
 
-        var result = await _userBotService.Delete(Fixture.TestCreatorId, bot.Id);
+        ResponseResult<bool> result = await _userBotService.Delete(Fixture.TestCreatorId, bot.Id);
 
         Assert.True(result.IsSuccess);
         

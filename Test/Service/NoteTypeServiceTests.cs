@@ -51,7 +51,7 @@ public class NoteTypeServiceTests(NoteTypeServiceFixture fixture) : IntegrationT
         Assert.Single(result.Value.Templates);
         
         Context.ChangeTracker.Clear();
-        var fromDb = await Context.NoteTypes.Include(nt => nt.Templates).FirstAsync(nt => nt.Name == "New Type");
+        NoteType fromDb = await Context.NoteTypes.Include(nt => nt.Templates).FirstAsync(nt => nt.Name == "New Type");
         Assert.Single(fromDb.Templates);
     }
 
@@ -72,7 +72,7 @@ public class NoteTypeServiceTests(NoteTypeServiceFixture fixture) : IntegrationT
     [Fact]
     public async Task Delete_ValidId_DeletesNoteType()
     {
-        var nt = new NoteType { CreatorId = Fixture.TestCreatorId, Name = "To Delete", Templates = [], CssStyle = "" };
+        NoteType nt = new NoteType { CreatorId = Fixture.TestCreatorId, Name = "To Delete", Templates = [], CssStyle = "" };
         Context.NoteTypes.Add(nt);
         await Context.SaveChangesAsync();
 

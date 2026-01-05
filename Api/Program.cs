@@ -47,12 +47,13 @@ builder.Services.AddScoped<IDeckService, DeckService>();
 builder.Services.AddScoped<INoteService, NoteService>();
 builder.Services.AddScoped<INoteTypeService, NoteTypeService>();
 builder.Services.AddScoped<IUserService, UserService>();
-
-// Helper Services
 builder.Services.AddScoped<IAuthManager, AuthManager>();
 builder.Services.AddScoped<IUserBotCodeService, UserBotCodeService>();
 builder.Services.AddScoped<IUserBotService, UserBotService>();
+
+// Helper Services
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAiServiceFactory, AiServiceFactory>();
 
 // Template & Algorithm Services
 builder.Services.AddScoped<ICssService, CssService>();

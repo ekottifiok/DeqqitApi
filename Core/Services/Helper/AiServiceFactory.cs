@@ -4,9 +4,9 @@ using Core.Services.Helper.Interface;
 
 namespace Core.Services.Helper;
 
-public static class AiServiceFactory
+public class AiServiceFactory: IAiServiceFactory
 {
-    public static IAiService GetUserService(UserAiProvider provider)
+    public IAiService GetUserService(UserAiProvider provider)
     {
         return provider.Type switch
         {

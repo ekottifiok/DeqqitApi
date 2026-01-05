@@ -11,7 +11,7 @@ public class UserBotServiceFixture : DatabaseFixture
 
     protected override async Task SeedAsync(DataContext context)
     {
-        var user = new UserFaker("BotTester")
+        User? user = new UserFaker("BotTester")
             .RuleFor(u => u.Id, _ => TestCreatorId)
             .Generate();
         context.Users.Add(user);

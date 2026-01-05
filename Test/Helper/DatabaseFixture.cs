@@ -17,8 +17,8 @@ public class DatabaseFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var connectionString = _config.GetConnectionString("DefaultConnection") 
-                               ?? throw new InvalidOperationException("Connection string not found");
+        string connectionString = _config.GetConnectionString("DefaultConnection") 
+                                  ?? throw new InvalidOperationException("Connection string not found");
         
         DbContextOptions = new DbContextOptionsBuilder<DataContext>()
             .UseNpgsql(connectionString)
@@ -26,7 +26,7 @@ public class DatabaseFixture : IAsyncLifetime
             .EnableDetailedErrors()
             .Options;
 
-        using var context = CreateContext();
+        using DataContext context = CreateContext();
         await context.Database.EnsureDeletedAsync();
         await context.Database.EnsureCreatedAsync();
         await SeedAsync(context);

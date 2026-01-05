@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Core.Model.Interface;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,9 +7,12 @@ namespace Core.Model;
 [Index(nameof(Name), nameof(CreatorId), IsUnique = true)]
 public class Deck : BaseModel, IPagination<int>
 {
+    [MaxLength(100)]
     public required string CreatorId { get; set; }
     public User Creator { get; set; }
+    [MaxLength(255)]
     public required string Name { get; set; }
+    [MaxLength(1000)]
     public required string Description { get; set; }
     public DeckOption? Option { get; set; }
     public ICollection<Note> Notes { get; set; } = [];
