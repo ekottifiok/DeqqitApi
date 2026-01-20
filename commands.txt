@@ -1,4 +1,5 @@
 "C:\Program Files\dotnet\dotnet.exe" ef database drop --force --project Core\Core.csproj --startup-project Api\Api.csproj --context Core.Data.DataContext
 
+"C:\Program Files\dotnet\dotnet.exe" ef database update --project Core\Core.csproj --startup-project Api\Api.csproj --context Core.Data.DataContext --configuration Debug "20260120061722_Other Cleanup"
 dotnet dev-certs https --trust
 dotnet tool install --global dotnet-ef
