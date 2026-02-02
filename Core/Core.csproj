@@ -22,7 +22,6 @@
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0"/>
         <PackageReference Include="OpenAI" Version="2.8.0"/>
         <PackageReference Include="Scriban" Version="6.5.2"/>
-        <PackageReference Include="Z.EntityFramework.Extensions.EFCore" Version="10.105.2"/>
     </ItemGroup>
 
     <ItemGroup>

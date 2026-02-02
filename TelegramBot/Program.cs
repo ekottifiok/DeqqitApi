@@ -22,6 +22,7 @@ IHost host = Host.CreateDefaultBuilder(args)
                 .EnableSensitiveDataLogging());
 
         // Core Services
+        services.AddScoped<IAiServiceFactory, AiServiceFactory>();
         services.AddScoped<IFlashcardAlgorithmService, FlashcardAlgorithmService>();
         services.AddScoped<ITemplateService, TemplateService>();
         services.AddScoped<ITimeService, TimeService>();

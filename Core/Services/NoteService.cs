@@ -8,7 +8,6 @@ using Core.Services.Helper.Interface;
 using Core.Services.Interface;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Z.EntityFramework.Extensions;
 
 namespace Core.Services;
 
@@ -176,12 +175,7 @@ public class NoteService(
                 "No valid notes to create after data cleanup."
             );
 
-        BulkOptimizedAnalysis? analysis = await context.BulkInsertOptimizedAsync(notes,
-            options => { options.IncludeGraph = true; });
-
-        if (!analysis.IsOptimized)
-            // TODO: Make it better
-            logger.LogInformation("AI analysis tips: {}", analysis.TipsText);
+        await context.Notes.AddRangeAsync(notes);
 
         return ResponseResult<bool>.Success(true);
     }
