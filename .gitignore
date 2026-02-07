@@ -482,4 +482,4 @@ $RECYCLE.BIN/
 *.swp
 
 Api/Api.http
-TelegramBot/appsettings.json
+appsettings*.json
