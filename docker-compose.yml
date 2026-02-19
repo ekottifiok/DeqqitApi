@@ -6,13 +6,13 @@ services:
       - "5182:5182"
     environment:
       - ASPNETCORE_URLS=http://+:5182
-      - DB_NAME=/run/secrets/DB_NAME
-      - DB_USER=/run/secrets/DB_USER
-      - DB_PASSWORD=/run/secrets/DB_PASSWORD
       - ConnectionStrings__DefaultConnection=Host=postgresDb;Database=DB_NAME;Username=DB_USER;Password=DB_PASSWORD
-      - JWT__ValidIssuer=DeqqitAPI
-      - JWT__ValidAudience=SPA
+      - DB_NAME=/run/secrets/DB_NAME
+      - DB_PASSWORD=/run/secrets/DB_PASSWORD
+      - DB_USER=/run/secrets/DB_USER
       - JWT__Secret=/run/secrets/JWT_SECRET
+      - JWT__ValidAudience=/run/secrets/AUDIENCE
+      - JWT__ValidIssuer=DeqqitAPI
     depends_on:
       - postgresDb
     secrets:
