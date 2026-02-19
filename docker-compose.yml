@@ -1,0 +1,53 @@
+services:
+  webserver:
+    build: .
+    ports:
+      - "5000:5000"
+      - "5182:5182"
+    environment:
+      - ASPNETCORE_URLS=http://+:5182
+      - DB_NAME=/run/secrets/DB_NAME
+      - DB_USER=/run/secrets/DB_USER
+      - DB_PASSWORD=/run/secrets/DB_PASSWORD
+      - ConnectionStrings__DefaultConnection=Host=postgresDb;Database=DB_NAME;Username=DB_USER;Password=DB_PASSWORD
+      - JWT__ValidIssuer=DeqqitAPI
+      - JWT__ValidAudience=SPA
+      - JWT__Secret=/run/secrets/JWT_SECRET
+    depends_on:
+      - postgresDb
+    secrets:
+      - DB_NAME
+      - DB_PASSWORD
+      - DB_USER
+
+  postgresDb:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: /run/secrets/DB_NAME
+      POSTGRES_USER: /run/secrets/DB_USER
+      POSTGRES_PASSWORD: /run/secrets/DB_PASSWORD
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    secrets:
+      - DB_NAME
+      - DB_PASSWORD
+      - DB_USER
+
+volumes:
+  postgres_data:
+
+
+secrets:
+  DB_PASSWORD:
+    file: .secrets/db/password.txt
+  DB_USER:
+    file: .secrets/db/user.txt
+  DB_NAME:
+    file: .secrets/db/name.txt
+  JWT_AUDIENCE:
+    file: .secrets/jwt/audience.txt
+  JWT_SECRET:
+    file: .secrets/jwt/secret.txt

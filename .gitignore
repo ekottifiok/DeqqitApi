@@ -483,3 +483,5 @@ $RECYCLE.BIN/
 
 Api/Api.http
 appsettings*.json
+
+.secrets/

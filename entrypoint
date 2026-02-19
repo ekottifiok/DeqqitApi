@@ -1,0 +1,14 @@
+#!/bin/bash
+# Read DB_PASSWORD from file and set as environment variable
+# export DB_PASSWORD=$(cat /run/secrets/db_password.txt)
+# export DB_USER=$(cat /run/secrets/db_user.txt)
+# export DB_NAME=$(cat /run/secrets/db_name.txt)
+
+# Read API_KEY from file and set as environment variable
+# Start the API in the background
+./Api
+
+# Start the Telegram Bot in the foreground
+# ./TelegramBot
+
+# echo "Hello from Alpine Docker!"

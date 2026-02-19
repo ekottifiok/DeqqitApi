@@ -100,7 +100,7 @@ WebApplication app = builder.Build();
 
 // ==================== Middleware Pipeline ====================
 // Database Initialization
-app.Services.UseSeedDatabaseMiddleware();
+// app.Services.UseSeedDatabaseMiddleware();
 
 // Configure the HTTP request pipeline
 app.UseOpenApiConfiguration();
